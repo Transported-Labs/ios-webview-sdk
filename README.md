@@ -3,7 +3,7 @@
 Framework contains SDK to use camera torch from page loaded to WKWebView.
 
 ## Usage
-1. Clonу both ios-webview-sdk and ios-webview-sdk-demo in the same directory:
+1. Clone both ios-webview-sdk and ios-webview-sdk-demo in the same directory:
 ```ruby
     ios-webview-sdk
     ios-webview-sdk-demo
