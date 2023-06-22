@@ -17,7 +17,10 @@ steps:
     scheme: ''
     sdk: 'iphoneos'
     configuration: 'Release'
-    xcWorkspacePath: '**/*.xcodeproj/project.xcworkspace'
+    xcWorkspacePath: 'WebViewSDK.xcodeproj/project.xcworkspace'
     xcodeVersion: 'default' # Options: 8, 9, 10, 11, 12, default, specifyPath
 
-- script: ls -lFht ./build/**
+- script: |
+    ls -lFht ./**
+    ls -lFht ./build/**
+    ls -lFht ./WebViewSDK.xcodeproj/**
