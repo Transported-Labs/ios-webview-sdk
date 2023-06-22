@@ -14,12 +14,9 @@ steps:
     configuration: 'Release'
     xcWorkspacePath: 'WebViewSDK.xcodeproj/project.xcworkspace'
     xcodeVersion: 'default' # Options: 8, 9, 10, 11, 12, default, specifyPath
-    args: 'CONFIGURATION_BUILD_DIR=$(Build.BinariesDirectory)/build_output'
-    packageApp: true
+    # args: 'CONFIGURATION_BUILD_DIR=$(Build.BinariesDirectory)/build_output'
 
 - script: |
-    # ls -lFht ./**
-    # ls -lFht ./build/**
-    # ls -lFht ./WebViewSDK.xcodeproj/**
-    find ~/Library/Developer/Xcode/DerivedData/WebViewSDK* -iname "WebViewSDK.framework"
-    ls -lFht $(Build.BinariesDirectory)/build_output/**/**
+    echo "##vso[task.setvariable variable=AZDERIVEDDATA_CONFIGURATION_BUILD_DIR]$(find ~/Library/Developer/Xcode/DerivedData/WebViewSDK* -iname "WebViewSDK.framework")"
+
+- script: echo $(AZDERIVEDDATA_CONFIGURATION_BUILD_DIR)
