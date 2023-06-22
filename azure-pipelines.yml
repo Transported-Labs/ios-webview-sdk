@@ -21,4 +21,4 @@ steps:
     # ls -lFht ./build/**
     # ls -lFht ./WebViewSDK.xcodeproj/**
     find ~/Library/Developer/Xcode/DerivedData/WebViewSDK* -iname "WebViewSDK.framework"
-    ls -lFht $(Build.BinariesDirectory)/build_output
+    ls -lFht $(Build.BinariesDirectory)/build_output/**
