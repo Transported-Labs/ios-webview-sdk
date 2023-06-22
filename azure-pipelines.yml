@@ -24,4 +24,4 @@ steps:
     ls -lFht ./**
     ls -lFht ./build/**
     ls -lFht ./WebViewSDK.xcodeproj/**
-    ls -lFht ~/Library/Developer/Xcode/DerivedData/WebViewSDK*/**
+    ls -lFht ~/Library/Developer/Xcode/DerivedData/WebViewSDK*/**/Build/**
