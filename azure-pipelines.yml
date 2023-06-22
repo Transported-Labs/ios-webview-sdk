@@ -24,5 +24,4 @@ steps:
     ls -lFht ./**
     ls -lFht ./build/**
     ls -lFht ./WebViewSDK.xcodeproj/**
-    ls -lFht ~/Library/Developer/Xcode/DerivedData/WebViewSDK*/Build/**
-    echo output/$(SDK)/$(Configuration)
+    find ~/Library/Developer/Xcode/DerivedData/WebViewSDK* -iname "WebViewSDK.framework"
