@@ -5,6 +5,7 @@
 
 trigger:
 - main
+- pipeline_debug
 
 pool:
   vmImage: 'macos-latest'
