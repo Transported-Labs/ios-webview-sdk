@@ -20,4 +20,4 @@ steps:
     xcWorkspacePath: '**/*.xcodeproj/project.xcworkspace'
     xcodeVersion: 'default' # Options: 8, 9, 10, 11, 12, default, specifyPath
 
-- script: ls -lFht ./**
+- script: ls -lFht ./build/**
