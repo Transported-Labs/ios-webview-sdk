@@ -126,13 +126,13 @@ stages:
             displayName: 'show the contents of $(Build.BinariesDirectory)/build_output'
 
           - task: ArchiveFiles@2
-            displayName: 'Archive apk'
+            displayName: 'Archive WebViewSDK.framework'
             condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
             inputs:
               rootFolderOrFile: $(Build.BinariesDirectory)/build_output/WebViewSDK.framework
-              includeRootFolder: false
+              includeRootFolder: true #false
               archiveType: zip
-              archiveFile: $(Build.ArtifactStagingDirectory)/$(Build.BuildId)_${{ variables.tplProjectName }}.zip
+              archiveFile: $(Build.ArtifactStagingDirectory)/WebViewSDK.framework.b$(Build.BuildId).zip
               replaceExistingArchive: true
 
           - upload: $(Build.ArtifactStagingDirectory)/WebViewSDK.framework.b$(Build.BuildId).zip
