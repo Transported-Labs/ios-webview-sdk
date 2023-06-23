@@ -19,7 +19,7 @@ variables:
   #   cdnEndpoint: prod-dxp
   #   domainDXP: tldxp.com
   #   saveLast: 10
-  #   uriPath: 'webview-sdk/android''
+  #   uriPath: 'webview-sdk/ios'
   #   performPurgeCDN: true
   ${{ if eq(variables['Build.SourceBranchName'], 'main') }}:
     webAppName: dev-dxp
@@ -28,7 +28,7 @@ variables:
     cdnEndpoint: dev-dxp
     domainDXP: developdxp.com
     saveLast: 10
-    uriPath: 'webview-sdk/android'
+    uriPath: 'webview-sdk/ios'
     performPurgeAFD: true
   ${{ elseif eq(variables['Build.SourceBranchName'], 'pipeline_debug') }}:
     webAppName: dev-dxp
@@ -37,7 +37,7 @@ variables:
     cdnEndpoint: dev-dxp
     domainDXP: developdxp.com
     saveLast: 10
-    uriPath: 'webview-sdk/android'
+    uriPath: 'webview-sdk/ios'
     performPurgeAFD: true
   # ${{ elseif eq(variables['Build.SourceBranchName'], 'testing') }}:
   #   webAppName: test-dxp
@@ -46,7 +46,7 @@ variables:
   #   cdnEndpoint: test-dxp
   #   domainDXP: testingdxp.com
   #   saveLast: 10
-  #   uriPath: 'webview-sdk/android'
+  #   uriPath: 'webview-sdk/ios'
   #   # temporary var performPurgeAFD
   #   performPurgeAFD: true
   # ${{ elseif eq(variables['Build.SourceBranchName'], 'staging') }}:
@@ -56,7 +56,7 @@ variables:
   #   cdnEndpoint: stag-dxp
   #   domainDXP: stagingdxp.com
   #   saveLast: 10
-  #   uriPath: 'webview-sdk/android'
+  #   uriPath: 'webview-sdk/ios'
   #   performPurgeCDN: true
   ${{ elseif eq(variables['Build.Reason'], 'PullRequest') }}:
     cdnAccountName: devdxpcdn
@@ -64,7 +64,7 @@ variables:
     cdnEndpoint: dev-dxp
     domainDXP: developdxp.com
     saveLast: 10
-    uriPath: 'webview-sdk/android'
+    uriPath: 'webview-sdk/ios'
 
 parameters:
 - name: cdnAccountName
@@ -164,12 +164,18 @@ stages:
                     echo ${{ parameters.uriPath }}
                   displayName: Show Parameters Value
 
-                - task: ExtractFiles@1
-                  displayName: 'Extract ${{ variables.tplProjectName }} ${{ parameters.cdnAccountName }}'
+                - bash: |
+                    cp $(Pipeline.Workspace)/drop/WebViewSDK.framework.b$(Build.BuildId).zip $(Pipeline.Workspace)/drop/WebViewSDK.framework.zip
+                  displayName: 'COPY WebViewSDK.framework.b$(Build.BuildId).zip to WebViewSDK.framework.zip'
+
+                - script: ls -lFht $(Pipeline.Workspace)/drop/
+                  displayName: 'show the contents of $(Pipeline.Workspace)/drop/'
+
+                - task: AzureCLI@2
+                  displayName: Deploy ${{ variables.tplProjectName }} ${{parameters.cdnAccountName}}
                   inputs:
-                    destinationFolder: ./${{ variables.tplProjectName }}
-                    archiveFilePatterns: $(Pipeline.Workspace)/drop/WebViewSDK.framework.b$(Build.BuildId).zip
-                    cleanDestinationFolder: true
-                    overwriteExistingFiles: false
-                
-                - script: ls -lFht ./${{ variables.tplProjectName }}
+                    azureSubscription: $(AZURE_SUBSCRIPTION)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: 'az storage blob upload-batch -d "\$web/${{ parameters.uriPath }}/release" -s $(Pipeline.Workspace)/drop/ --account-name ${{parameters.cdnAccountName}} --overwrite=true'
+                    useGlobalConfig: true
