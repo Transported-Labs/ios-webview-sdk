@@ -6,7 +6,6 @@ trigger:
     # - develop
     # - testing
     # - staging
-    - pipeline_debug
 
 variables:
   vmImageMac: 'macos-latest'
@@ -30,7 +29,7 @@ variables:
     saveLast: 10
     uriPath: 'webview-sdk/ios'
     performPurgeAFD: true
-  ${{ elseif eq(variables['Build.SourceBranchName'], 'pipeline_debug') }}:
+  ${{ elseif eq(variables['Build.SourceBranchName'], 'develop') }}:
     webAppName: dev-dxp
     cdnAccountName: devdxpcdn
     cdnGroup: dev-dxp-grp
@@ -226,7 +225,7 @@ stages:
                     scriptLocation: 'inlineScript'
                     inlineScript: |
                       echo "------------------------------"
-                      echo ""The Last ${{variables.saveLast}} Files" -webview-sdk/ios/release/WebViewSDK.framework.b"
+                      echo ""The Last ${{variables.saveLast}} Files" - webview-sdk/ios/release/WebViewSDK.framework.b"
                       echo "------------------------------"
                       az storage blob list --only-show-errors -c \$web --account-name ${{variables.cdnAccountName}} --prefix "webview-sdk/ios/release/WebViewSDK.framework.b" --query \
                       "sort_by([].{name:name, Date:properties.lastModified}, &Date)" -otsv
