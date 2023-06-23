@@ -112,6 +112,7 @@ stages:
         steps:
 
           - task: Xcode@5
+            displayName: 'Build with Xcode'
             inputs:
               actions: 'build'
               scheme: ''
@@ -122,5 +123,56 @@ stages:
 
           - script: |
               echo "##vso[task.setvariable variable=AZDERIVEDDATA_CONFIGURATION_BUILD_DIR]$(find ~/Library/Developer/Xcode/DerivedData/WebViewSDK* -iname "WebViewSDK.framework")"
+            displayName: 'Set variable AZDERIVEDDATA_CONFIGURATION_BUILD_DIR'
 
           - script: echo $(AZDERIVEDDATA_CONFIGURATION_BUILD_DIR)
+            displayName: 'Show variable AZDERIVEDDATA_CONFIGURATION_BUILD_DIR'
+
+          - task: ArchiveFiles@2
+            displayName: 'Archive apk'
+            condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+            inputs:
+              rootFolderOrFile: $(AZDERIVEDDATA_CONFIGURATION_BUILD_DIR)
+              includeRootFolder: false
+              archiveType: zip
+              archiveFile: $(Build.ArtifactStagingDirectory)/$(Build.BuildId)_${{ variables.tplProjectName }}.zip
+              replaceExistingArchive: true
+
+          - upload: $(Build.ArtifactStagingDirectory)/$(Build.BuildId)_${{ variables.tplProjectName }}.zip
+            artifact: drop
+            condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+
+  - stage: Deploy
+    displayName: Deploy stage
+    dependsOn: Build
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+    jobs:
+      - deployment: Deploy
+        displayName: Deploy stage
+        environment: ${{parameters.cdnAccountName}}
+
+        pool:
+          vmImage: $(vmImageUbu)
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+
+                - bash: |
+                    echo ${{ parameters.cdnAccountName }}
+                    echo ${{ parameters.cdnGroup }}
+                    echo ${{ parameters.cdnEndpoint }}
+                    echo ${{ parameters.domainDXP }}
+                    echo ${{ parameters.deleteOlderCDN }}
+                    echo ${{ parameters.uriPath }}
+                  displayName: Show Parameters Value
+
+                - task: ExtractFiles@1
+                  displayName: 'Extract ${{ variables.tplProjectName }} ${{ parameters.cdnAccountName }}'
+                  inputs:
+                    destinationFolder: ./${{ variables.tplProjectName }}
+                    archiveFilePatterns: $(Pipeline.Workspace)/drop/$(Build.BuildId)_${{ variables.tplProjectName }}.zip
+                    cleanDestinationFolder: true
+                    overwriteExistingFiles: false
+                
+                - script: ls -lFht ./${{ variables.tplProjectName }}
