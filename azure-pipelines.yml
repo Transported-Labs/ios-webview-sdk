@@ -1,22 +1,126 @@
 trigger:
-- main
-- pipeline_debug
+  batch: true
+  branches:
+    include:
+    - main
+    # - develop
+    # - testing
+    # - staging
+    - pipeline_debug
 
-pool:
-  vmImage: 'macos-latest'
+variables:
+  vmImageMac: 'macos-latest'
+  vmImageUbu: 'ubuntu-latest'
+  tplProjectName: 'ios-webview-sdk'
+  # ${{ if eq(variables['Build.SourceBranchName'], 'main') }}:
+  #   webAppName: prod-dxp
+  #   cdnAccountName: proddxpcdn
+  #   cdnGroup: prod-dxp-grp
+  #   cdnEndpoint: prod-dxp
+  #   domainDXP: tldxp.com
+  #   saveLast: 10
+  #   uriPath: 'webview-sdk/android''
+  #   performPurgeCDN: true
+  ${{ if eq(variables['Build.SourceBranchName'], 'main') }}:
+    webAppName: dev-dxp
+    cdnAccountName: devdxpcdn
+    cdnGroup: dev-dxp-grp
+    cdnEndpoint: dev-dxp
+    domainDXP: developdxp.com
+    saveLast: 10
+    uriPath: 'webview-sdk/android'
+    performPurgeAFD: true
+  ${{ elseif eq(variables['Build.SourceBranchName'], 'pipeline_debug') }}:
+    webAppName: dev-dxp
+    cdnAccountName: devdxpcdn
+    cdnGroup: dev-dxp-grp
+    cdnEndpoint: dev-dxp
+    domainDXP: developdxp.com
+    saveLast: 10
+    uriPath: 'webview-sdk/android'
+    performPurgeAFD: true
+  # ${{ elseif eq(variables['Build.SourceBranchName'], 'testing') }}:
+  #   webAppName: test-dxp
+  #   cdnAccountName: testdxpcdn
+  #   cdnGroup: test-dxp-grp
+  #   cdnEndpoint: test-dxp
+  #   domainDXP: testingdxp.com
+  #   saveLast: 10
+  #   uriPath: 'webview-sdk/android'
+  #   # temporary var performPurgeAFD
+  #   performPurgeAFD: true
+  # ${{ elseif eq(variables['Build.SourceBranchName'], 'staging') }}:
+  #   webAppName: stag-dxp
+  #   cdnAccountName: stagdxpcdn
+  #   cdnGroup: stag-dxp-grp
+  #   cdnEndpoint: stag-dxp
+  #   domainDXP: stagingdxp.com
+  #   saveLast: 10
+  #   uriPath: 'webview-sdk/android'
+  #   performPurgeCDN: true
+  ${{ elseif eq(variables['Build.Reason'], 'PullRequest') }}:
+    cdnAccountName: devdxpcdn
+    cdnGroup: dev-dxp-grp
+    cdnEndpoint: dev-dxp
+    domainDXP: developdxp.com
+    saveLast: 10
+    uriPath: 'webview-sdk/android'
 
-steps:
-- task: Xcode@5
-  inputs:
-    actions: 'build'
-    scheme: ''
-    sdk: 'iphoneos'
-    configuration: 'Release'
-    xcWorkspacePath: 'WebViewSDK.xcodeproj/project.xcworkspace'
-    xcodeVersion: 'default' # Options: 8, 9, 10, 11, 12, default, specifyPath
-    # args: 'CONFIGURATION_BUILD_DIR=$(Build.BinariesDirectory)/build_output'
+parameters:
+- name: cdnAccountName
+  displayName: cdnAccountName
+  type: string
+  default: $(cdnAccountName)
+- name: cdnGroup
+  displayName: cdnGroup
+  type: string
+  default: $(cdnGroup)
+- name: cdnEndpoint
+  displayName: cdnEndpoint
+  type: string
+  default: $(cdnEndpoint)
+- name: domainDXP
+  displayName: domainDXP
+  type: string
+  default: $(domainDXP)
+- name: deleteOlderCDN
+  displayName: deleteOlderCDN
+  type: string
+  default: $(deleteOlderCDN)
+- name: uriPath
+  displayName: uriPath
+  type: string
+  default: $(uriPath)
+- name: X_API
+  displayName: X_API
+  type: string
+  default: undefined
+- name: webAppName
+  type: string
+  default: $(webAppName)
+- name: customPerformPurgeAFD
+  type: boolean
+  default: false
 
-- script: |
-    echo "##vso[task.setvariable variable=AZDERIVEDDATA_CONFIGURATION_BUILD_DIR]$(find ~/Library/Developer/Xcode/DerivedData/WebViewSDK* -iname "WebViewSDK.framework")"
+stages:
+  - stage: build
+    displayName: Build stage
+    pool:
+      vmImage: $(vmImageMac)
+    jobs:
+      - job: BuildAndPublish
+        steps:
 
-- script: echo $(AZDERIVEDDATA_CONFIGURATION_BUILD_DIR)
+          - task: Xcode@5
+            inputs:
+              actions: 'build'
+              scheme: ''
+              sdk: 'iphoneos'
+              configuration: 'Release'
+              xcWorkspacePath: 'WebViewSDK.xcodeproj/project.xcworkspace'
+              xcodeVersion: 'default'
+
+          - script: |
+              echo "##vso[task.setvariable variable=AZDERIVEDDATA_CONFIGURATION_BUILD_DIR]$(find ~/Library/Developer/Xcode/DerivedData/WebViewSDK* -iname "WebViewSDK.framework")"
+
+          - script: echo $(AZDERIVEDDATA_CONFIGURATION_BUILD_DIR)
