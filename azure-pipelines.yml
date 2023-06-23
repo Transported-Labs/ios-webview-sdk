@@ -1,20 +1,344 @@
-# Xcode
-# Build, test, and archive an Xcode workspace on macOS.
-# Add steps that install certificates, test, sign, and distribute an app, save build artifacts, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/xcode
-
 trigger:
-- main
+  batch: true
+  branches:
+    include:
+    - main
+    # - develop
+    # - testing
+    # - staging
 
-pool:
-  vmImage: 'macos-latest'
+variables:
+  vmImageMac: 'macos-latest'
+  vmImageUbu: 'ubuntu-latest'
+  tplProjectName: 'ios-webview-sdk'
+  # ${{ if eq(variables['Build.SourceBranchName'], 'main') }}:
+  #   webAppName: prod-dxp
+  #   cdnAccountName: proddxpcdn
+  #   cdnGroup: prod-dxp-grp
+  #   cdnEndpoint: prod-dxp
+  #   domainDXP: tldxp.com
+  #   saveLast: 10
+  #   uriPath: 'webview-sdk/ios'
+  #   performPurgeCDN: true
+  ${{ if eq(variables['Build.SourceBranchName'], 'main') }}:
+    webAppName: dev-dxp
+    cdnAccountName: devdxpcdn
+    cdnGroup: dev-dxp-grp
+    cdnEndpoint: dev-dxp
+    domainDXP: developdxp.com
+    saveLast: 10
+    uriPath: 'webview-sdk/ios'
+    performPurgeAFD: true
+  ${{ elseif eq(variables['Build.SourceBranchName'], 'develop') }}:
+    webAppName: dev-dxp
+    cdnAccountName: devdxpcdn
+    cdnGroup: dev-dxp-grp
+    cdnEndpoint: dev-dxp
+    domainDXP: developdxp.com
+    saveLast: 10
+    uriPath: 'webview-sdk/ios'
+    performPurgeAFD: true
+  # ${{ elseif eq(variables['Build.SourceBranchName'], 'testing') }}:
+  #   webAppName: test-dxp
+  #   cdnAccountName: testdxpcdn
+  #   cdnGroup: test-dxp-grp
+  #   cdnEndpoint: test-dxp
+  #   domainDXP: testingdxp.com
+  #   saveLast: 10
+  #   uriPath: 'webview-sdk/ios'
+  #   # temporary var performPurgeAFD
+  #   performPurgeAFD: true
+  # ${{ elseif eq(variables['Build.SourceBranchName'], 'staging') }}:
+  #   webAppName: stag-dxp
+  #   cdnAccountName: stagdxpcdn
+  #   cdnGroup: stag-dxp-grp
+  #   cdnEndpoint: stag-dxp
+  #   domainDXP: stagingdxp.com
+  #   saveLast: 10
+  #   uriPath: 'webview-sdk/ios'
+  #   performPurgeCDN: true
+  ${{ elseif eq(variables['Build.Reason'], 'PullRequest') }}:
+    cdnAccountName: devdxpcdn
+    cdnGroup: dev-dxp-grp
+    cdnEndpoint: dev-dxp
+    domainDXP: developdxp.com
+    saveLast: 10
+    uriPath: 'webview-sdk/ios'
 
-steps:
-- task: Xcode@5
-  inputs:
-    actions: 'build'
-    scheme: ''
-    sdk: 'iphoneos'
-    configuration: 'Release'
-    xcWorkspacePath: '**/*.xcodeproj/project.xcworkspace'
-    xcodeVersion: 'default' # Options: 8, 9, 10, 11, 12, default, specifyPath
+parameters:
+- name: cdnAccountName
+  displayName: cdnAccountName
+  type: string
+  default: $(cdnAccountName)
+- name: cdnGroup
+  displayName: cdnGroup
+  type: string
+  default: $(cdnGroup)
+- name: cdnEndpoint
+  displayName: cdnEndpoint
+  type: string
+  default: $(cdnEndpoint)
+- name: domainDXP
+  displayName: domainDXP
+  type: string
+  default: $(domainDXP)
+- name: deleteOlderCDN
+  displayName: deleteOlderCDN
+  type: string
+  default: $(deleteOlderCDN)
+- name: uriPath
+  displayName: uriPath
+  type: string
+  default: $(uriPath)
+- name: X_API
+  displayName: X_API
+  type: string
+  default: undefined
+- name: webAppName
+  type: string
+  default: $(webAppName)
+- name: customPerformPurgeAFD
+  type: boolean
+  default: false
+
+stages:
+  - stage: build
+    displayName: Build stage
+    pool:
+      vmImage: $(vmImageMac)
+    jobs:
+      - job: BuildAndPublish
+        steps:
+
+          - task: Xcode@5
+            displayName: 'Build with Xcode'
+            inputs:
+              actions: 'build'
+              scheme: ''
+              sdk: 'iphoneos'
+              configuration: 'Release'
+              xcWorkspacePath: 'WebViewSDK.xcodeproj/project.xcworkspace'
+              xcodeVersion: 'default'
+              args: 'CONFIGURATION_BUILD_DIR=$(Build.BinariesDirectory)/build_output'
+
+          - script: ls -lFht $(Build.BinariesDirectory)/build_output
+            displayName: 'show the contents of $(Build.BinariesDirectory)/build_output'
+
+          - task: ArchiveFiles@2
+            displayName: 'Archive WebViewSDK.framework'
+            condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+            inputs:
+              rootFolderOrFile: $(Build.BinariesDirectory)/build_output/WebViewSDK.framework
+              includeRootFolder: true #false
+              archiveType: zip
+              archiveFile: $(Build.ArtifactStagingDirectory)/WebViewSDK.framework.b$(Build.BuildId).zip
+              replaceExistingArchive: true
+
+          - upload: $(Build.ArtifactStagingDirectory)/WebViewSDK.framework.b$(Build.BuildId).zip
+            artifact: drop
+            condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+
+  - stage: Deploy
+    displayName: Deploy stage
+    dependsOn: Build
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+    jobs:
+      - deployment: Deploy
+        displayName: Deploy stage
+        environment: ${{parameters.cdnAccountName}}
+
+        pool:
+          vmImage: $(vmImageUbu)
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+
+                - bash: |
+                    echo ${{ parameters.cdnAccountName }}
+                    echo ${{ parameters.cdnGroup }}
+                    echo ${{ parameters.cdnEndpoint }}
+                    echo ${{ parameters.domainDXP }}
+                    echo ${{ parameters.deleteOlderCDN }}
+                    echo ${{ parameters.uriPath }}
+                  displayName: Show Parameters Value
+
+                - bash: |
+                    cp $(Pipeline.Workspace)/drop/WebViewSDK.framework.b$(Build.BuildId).zip $(Pipeline.Workspace)/drop/WebViewSDK.framework.zip
+                  displayName: 'COPY WebViewSDK.framework.b$(Build.BuildId).zip to WebViewSDK.framework.zip'
+
+                - script: ls -lFht $(Pipeline.Workspace)/drop/
+                  displayName: 'show the contents of $(Pipeline.Workspace)/drop/'
+
+                - task: AzureCLI@2
+                  displayName: Deploy ${{ variables.tplProjectName }} ${{parameters.cdnAccountName}}
+                  inputs:
+                    azureSubscription: $(AZURE_SUBSCRIPTION)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: 'az storage blob upload-batch -d "\$web/${{ parameters.uriPath }}/release" -s $(Pipeline.Workspace)/drop/ --account-name ${{parameters.cdnAccountName}} --overwrite=true'
+                    useGlobalConfig: true
+
+  - stage: PurgeCDN
+    displayName: PurgeCDN stage
+    dependsOn: Deploy
+    condition: and(succeededOrFailed(), ne(variables['Build.Reason'], 'PullRequest'))
+    jobs:
+      - deployment: PurgeCDN
+        displayName: PurgeCDN stage
+        environment: ${{parameters.cdnAccountName}}
+
+        pool:
+          vmImage: $(vmImageUbu)
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+
+                - task: AzureCLI@2
+                  displayName: Purge CDN ${{variables.cdnAccountName}}
+                  condition: and(succeededOrFailed(), eq(variables['performPurgeCDN'], 'true'))
+                  inputs:
+                    azureSubscription: $(AZURE_SUBSCRIPTION)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: 'az cdn endpoint purge --debug -g ${{variables.cdnGroup}} -n ${{variables.cdnEndpoint}} --profile-name ${{variables.cdnEndpoint}} --content-paths "/*"'
+                    useGlobalConfig: true
+
+                - task: AzureCLI@2
+                  displayName: 'Purge AFD ${{ parameters.cdnAccountName }}'
+                  condition: and(succeededOrFailed(), or(eq(variables['performPurgeAFD'], 'true'), eq('${{ parameters.customPerformPurgeAFD }}', 'true')))
+                  inputs:
+                    azureSubscription: $(AZURE_SUBSCRIPTION)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      set -e
+                      az afd endpoint purge --debug --resource-group ${{parameters.cdnGroup}} --profile-name ${{parameters.cdnEndpoint}}-standard --endpoint-name ${{parameters.cdnEndpoint}}  --content-paths '/*' --domains file.${{ parameters.domainDXP }}
+                    useGlobalConfig: true
+
+                - task: AzureCLI@2
+                  displayName: Leave the last ${{variables.saveLast}} files for CDN ${{variables.cdnAccountName}} in webview-sdk/ios/release/WebViewSDK.framework.b*
+                  inputs:
+                    azureSubscription: $(AZURE_SUBSCRIPTION)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      echo "------------------------------"
+                      echo ""The Last ${{variables.saveLast}} Files" - webview-sdk/ios/release/WebViewSDK.framework.b"
+                      echo "------------------------------"
+                      az storage blob list --only-show-errors -c \$web --account-name ${{variables.cdnAccountName}} --prefix "webview-sdk/ios/release/WebViewSDK.framework.b" --query \
+                      "sort_by([].{name:name, Date:properties.lastModified}, &Date)" -otsv
+                      echo "------------------------------"
+                      echo "Files will be deleted in the ${{variables.saveLast}}"
+                      echo "------------------------------"
+                      az storage blob list --only-show-errors -c \$web --account-name ${{variables.cdnAccountName}} --prefix "webview-sdk/ios/release/WebViewSDK.framework.b" --query \
+                      "sort_by([].{name:name, Date:properties.lastModified}, &Date)" -otsv|awk '{print $1}'|head -n -${{variables.saveLast}}
+                      echo "------------------------------"
+                      echo "Deleting"
+                      echo "------------------------------"
+                      az storage blob list --only-show-errors -c \$web --account-name ${{variables.cdnAccountName}} --prefix "webview-sdk/ios/release/WebViewSDK.framework.b" --query \
+                      "sort_by([].{name:name, Date:properties.lastModified}, &Date)" -otsv|awk '{print $1}'|head -n -${{variables.saveLast}} \
+                      | xargs -rtL1 -I {} \
+                      az storage blob delete-batch --only-show-errors --source \$web --account-name ${{variables.cdnAccountName}} --pattern {}
+                    useGlobalConfig: true
+
+                # - task: AzureCLI@2
+                #   displayName: Leave the last ${{variables.saveLast}} files for CDN ${{variables.cdnAccountName}} in webview-sdk/ios/debug/WebViewSDK.framework.b*
+                #   inputs:
+                #     azureSubscription: $(AZURE_SUBSCRIPTION)
+                #     scriptType: 'bash'
+                #     scriptLocation: 'inlineScript'
+                #     inlineScript: |
+                #       echo "------------------------------"
+                #       echo ""The Last ${{variables.saveLast}} Files" - webview-sdk/ios/debug/WebViewSDK.framework.b"
+                #       echo "------------------------------"
+                #       az storage blob list --only-show-errors -c \$web --account-name ${{variables.cdnAccountName}} --prefix "webview-sdk/ios/debug/WebViewSDK.framework.b" --query \
+                #       "sort_by([].{name:name, Date:properties.lastModified}, &Date)" -otsv
+                #       echo "------------------------------"
+                #       echo "Files will be deleted in the ${{variables.saveLast}}"
+                #       echo "------------------------------"
+                #       az storage blob list --only-show-errors -c \$web --account-name ${{variables.cdnAccountName}} --prefix "webview-sdk/ios/debug/WebViewSDK.framework.b" --query \
+                #       "sort_by([].{name:name, Date:properties.lastModified}, &Date)" -otsv|awk '{print $1}'|head -n -${{variables.saveLast}}
+                #       echo "------------------------------"
+                #       echo "Deleting"
+                #       echo "------------------------------"
+                #       az storage blob list --only-show-errors -c \$web --account-name ${{variables.cdnAccountName}} --prefix "webview-sdk/ios/debug/WebViewSDK.framework.b" --query \
+                #       "sort_by([].{name:name, Date:properties.lastModified}, &Date)" -otsv|awk '{print $1}'|head -n -${{variables.saveLast}} \
+                #       | xargs -rtL1 -I {} \
+                #       az storage blob delete-batch --only-show-errors --source \$web --account-name ${{variables.cdnAccountName}} --pattern {}
+                #     useGlobalConfig: true
+
+                # - bash: |
+                #     echo $(errorExist)
+                #   displayName: Show Value errorExist
+
+                # - task: PythonScript@0
+                #   displayName: Send about files differ from the build
+                #   condition: and(succeededOrFailed(), eq(variables['errorExist'], 'Yes'))
+                #   inputs:
+                #     scriptSource: 'inline'
+                #     script: |
+                #       import os
+                #       import json
+                #       import requests
+
+                #       SEND_MAIL_TO = os.environ['SEND_MAIL_TO']
+                #       SYSTEM_STAGEID=os.environ['SYSTEM_STAGEID']
+                #       BUILD_BUILDID=os.environ['BUILD_BUILDID']
+                #       devOpsOrg = "$(devOpsOrg)"
+                #       devOpsProj = "$(devOpsProj)"
+                #       url = f'$(devOpsUrl)'
+                #       params = {'api-version': '6.0-preview.1'}
+                #       headers = {'Content-Type': 'application/json'}
+                #       response = requests.get(
+                #           url,
+                #           headers=headers,
+                #           params=params,
+                #           auth=('', '$(armDevOpsPipeline)')
+                #       )
+                #       textTeams = json.loads(response.text)
+                #       devOpsTeamsId = list(map(lambda id: id['id'], textTeams['value']))
+                #       listMembers = []
+                #       for idMember in devOpsTeamsId:
+                #           urlMembers = f'$(devOpsUrl)/{idMember}/members'
+                #           params = {'api-version': '6.0-preview.1'}
+                #           headers = {'Content-Type': 'application/json'}
+                #           responseMembers = requests.get(
+                #               urlMembers,
+                #               headers=headers,
+                #               params=params,
+                #               auth=('', '$(armDevOpsPipeline)')
+                #           )
+                #           textMembers = json.loads(responseMembers.text)
+                #           listMembers.append(textMembers['value'])
+                #       recipientsIds = []
+                #       for members in listMembers:
+                #           for memberId in members:
+                #               if memberId['uniqueName'] in SEND_MAIL_TO.split(','):
+                #                   recipientsIds.append(memberId['id'])
+                #       for recipientId in set(recipientsIds):
+                #           data_body = \
+                #               {
+                #                   "senderType": 1,
+                #                   "to": {
+                #                       "tfsIds": [
+                #                           f"{recipientId}"
+                #                       ],
+                #                       "emailAddresses": []
+                #                   },
+                #                   "subject": "There are problems in the Pipeline, see the link in the email",
+                #                   "body": f"$(seeBuildTask)"
+                #               }
+                #           url = f'$(devOpsUrlSendMail)'
+                #           params = {'api-version': '7.1-preview.1'}
+                #           headers = {'Content-Type': 'application/json'}
+                #           data = data_body
+                #           response = requests.post(
+                #               url,
+                #               data=json.dumps(data),
+                #               headers=headers,
+                #               params=params,
+                #               auth=('', '$(armDevOpsPipeline)')
+                #           )
+                #           print(response.text if response.text != '' else f'sended recipients {SEND_MAIL_TO}')
