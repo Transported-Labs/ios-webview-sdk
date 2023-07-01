@@ -9,6 +9,7 @@
 import UIKit
 import WebKit
 import AVKit
+import CoreHaptics
 
 public enum InvalidUrlError: Error {
     case runtimeError(String)
@@ -20,12 +21,15 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
 
     let cueSDKName = "cueSDK"
     let torchServiceName = "torch"
+    let vibrationServiceName = "vibration"
     let onMethodName = "on"
     let offMethodName = "off"
     let checkIsOnMethodName = "isOn"
+    let vibrateMethodName = "vibrate"
     let testErrorMethodName = "testError"
     
     var curRequestId: Int? = nil
+    var hapticEngine: CHHapticEngine?
     
     lazy var webView: WKWebView = {
         let wv = WKWebView()
@@ -52,6 +56,8 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         webView.configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         let contentController = self.webView.configuration.userContentController
         contentController.add(self, name: cueSDKName)
+        // Init HapticEngine
+        initHapticEngine()
     }
     
     ///  Navigates to the url in embedded WKWebView-object
@@ -126,6 +132,37 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
             sendToJavaScript(result: isOn)
         }
     }
+    
+    private func initHapticEngine() {
+        guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
+
+        do {
+            hapticEngine = try CHHapticEngine()
+            try hapticEngine?.start()
+        } catch {
+            errorToJavaScript("There was an error creating the haptic engine: \(error.localizedDescription)")
+        }
+    }
+    
+    private func makeVibration(duration: Int) {
+        if let engine = hapticEngine {
+            let intensity = CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0)
+            let sharpness = CHHapticEventParameter(parameterID: .hapticSharpness, value: 1.0)
+            
+            var events = [CHHapticEvent]()
+            let seconds: TimeInterval = Double(duration) / 1000.0
+            let event = CHHapticEvent(eventType: .hapticContinuous, parameters: [intensity, sharpness], relativeTime: 0, duration: seconds)
+            events.append(event)
+            do {
+                let pattern = try CHHapticPattern(events: events, parameters: [])
+                let player = try engine.makePlayer(with: pattern)
+                try player.start(atTime: 0)
+                sendToJavaScript(result: nil)
+            } catch {
+                errorToJavaScript("Haptic Error: \(error.localizedDescription).")
+            }
+        }
+    }
 }
 
 extension WebViewController: WKScriptMessageHandler{
@@ -146,8 +183,18 @@ extension WebViewController: WKScriptMessageHandler{
                         errorToJavaScript("This is the test error message")
                     default: break
                     }
+                } else if serviceName == vibrationServiceName {
+                    switch methodName {
+                    case vibrateMethodName:
+                        if let duration = params[3] as? Int {
+                            makeVibration(duration: duration)
+                        } else {
+                            errorToJavaScript("Duration: null is not valid value")
+                        }
+                    default: break
+                    }
                 } else {
-                    errorToJavaScript("Only serviceName '\(torchServiceName)' is supported")
+                    errorToJavaScript("Only services '\(torchServiceName)', '\(vibrationServiceName)' are supported")
                 }
             }
         } else {
