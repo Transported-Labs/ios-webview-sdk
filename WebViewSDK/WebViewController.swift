@@ -26,6 +26,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     let offMethodName = "off"
     let checkIsOnMethodName = "isOn"
     let vibrateMethodName = "vibrate"
+    let sparkleMethodName = "sparkle"
     let testErrorMethodName = "testError"
     
     var curRequestId: Int? = nil
@@ -133,6 +134,32 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         }
     }
     
+    private func sparkle(duration: Int) {
+        let blinkDelay: TimeInterval = 0.1
+        if (duration > 0) {
+            if let device = torchDevice() {
+                do {
+                    try device.lockForConfiguration()
+                    let flashTimer = Timer.scheduledTimer(withTimeInterval: blinkDelay, repeats: true) { _ in
+                        device.torchMode = .on
+                        Thread.sleep(forTimeInterval: blinkDelay / 2.0)
+                        device.torchMode = .off
+                    }
+                    let seconds: TimeInterval = Double(duration) / 1000.0
+                    DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
+                        device.unlockForConfiguration()
+                        flashTimer.invalidate()
+                        self.sendToJavaScript(result: nil)
+                    }
+                } catch {
+                    errorToJavaScript("Torch could not be used")
+                }
+            }
+        } else {
+            errorToJavaScript("Duration: \(duration) is not valid value")
+        }
+    }
+    
     private func initHapticEngine() {
         guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
 
@@ -179,6 +206,12 @@ extension WebViewController: WKScriptMessageHandler{
                         turnTorch(isOn: false)
                     case checkIsOnMethodName:
                         checkIsTorchOn()
+                    case sparkleMethodName:
+                        if let duration = params[3] as? Int {
+                            sparkle(duration: duration)
+                        } else {
+                            errorToJavaScript("Duration: null is not valid value")
+                        }
                     case testErrorMethodName:
                         errorToJavaScript("This is the test error message")
                     default: break
