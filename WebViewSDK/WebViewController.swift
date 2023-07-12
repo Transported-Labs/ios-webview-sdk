@@ -33,7 +33,9 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     var hapticEngine: CHHapticEngine?
     
     lazy var webView: WKWebView = {
-        let wv = WKWebView()
+        let webConfiguration = WKWebViewConfiguration()
+        webConfiguration.allowsInlineMediaPlayback = true
+        let wv = WKWebView(frame: .zero, configuration: webConfiguration)
         wv.uiDelegate = self
         wv.navigationDelegate = self
         wv.translatesAutoresizingMaskIntoConstraints = false
