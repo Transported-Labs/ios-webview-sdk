@@ -42,6 +42,19 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         return wv
     }()
     
+    lazy var torchDevice: AVCaptureDevice? = {
+        if let device = bestCamera(for: .back) {
+            if device.hasTorch {
+                return device
+            } else {
+                errorToJavaScript("Torch is not available")
+            }
+        }  else  {
+            errorToJavaScript("Device has no back camera")
+        }
+        return nil
+    }()
+    
     public override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -103,21 +116,8 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         return devices.first { $0.position == position }
     }
     
-    private func torchDevice() -> AVCaptureDevice? {
-        if let device = bestCamera(for: .back) {
-            if device.hasTorch {
-                return device
-            } else {
-                errorToJavaScript("Torch is not available")
-            }
-        }  else  {
-            errorToJavaScript("Device has no back camera")
-        }
-        return nil
-    }
-    
     private func turnTorch(isOn: Bool) {
-        if let device = torchDevice() {
+        if let device = torchDevice {
             do {
                 try device.lockForConfiguration()
                 device.torchMode = isOn ? .on : .off
@@ -130,31 +130,43 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     }
     
     private func checkIsTorchOn() {
-        if let device = torchDevice() {
+        if let device = torchDevice {
             let isOn = (device.torchMode == .on)
             sendToJavaScript(result: isOn)
         }
     }
     
     private func sparkle(duration: Int) {
-        let blinkDelay: TimeInterval = 0.1
+        // Delay in microseconds for usleep function
+        let blinkDelay: UInt32 = 50000
         if (duration > 0) {
-            if let device = torchDevice() {
+            if let device = torchDevice {
                 do {
+                    var isSparkling = true
                     try device.lockForConfiguration()
-                    let flashTimer = Timer.scheduledTimer(withTimeInterval: blinkDelay, repeats: true) { _ in
-                        device.torchMode = .on
-                        Thread.sleep(forTimeInterval: blinkDelay / 2.0)
+                    // Create a work item with repeating flash
+                    let workItem = DispatchWorkItem {
+                        var isOn = false
+                        while (isSparkling) {
+                            isOn = !isOn
+                            device.torchMode = isOn ? .on : .off
+                            usleep(blinkDelay)
+                        }
+                    }
+                    // Create dispatch group for flash
+                    let dispatchGroup = DispatchGroup()
+                    // Use .default thread instead of .background due to higher delay accuracy
+                    DispatchQueue.global(qos: .default).async(group: dispatchGroup, execute: workItem)
+                    // Stop workItem after duration milliseconds
+                    DispatchQueue.main.asyncAfter(deadline: .now() + Double(duration) / 1000.0, execute: {
+                        isSparkling = false
+                        workItem.cancel()
                         device.torchMode = .off
-                    }
-                    let seconds: TimeInterval = Double(duration) / 1000.0
-                    DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
                         device.unlockForConfiguration()
-                        flashTimer.invalidate()
                         self.sendToJavaScript(result: nil)
-                    }
+                    })
                 } catch {
-                    errorToJavaScript("Torch could not be used")
+                    errorToJavaScript("Torch could not be used for sparkle")
                 }
             }
         } else {
