@@ -96,6 +96,16 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         self.present(alertController, animated: true, completion: nil)
     }
     
+    public func webView(_ webView: WKWebView,
+        requestMediaCapturePermissionFor
+        origin: WKSecurityOrigin,initiatedByFrame
+        frame: WKFrameInfo,type: WKMediaCaptureType,
+        decisionHandler: @escaping (WKPermissionDecision) -> Void){
+        if (type == .microphone) {
+            decisionHandler(.grant)
+          }
+     }
+    
     @objc func reloadWebView(_ sender: UIRefreshControl) {
         webView.reload()
         sender.endRefreshing()
