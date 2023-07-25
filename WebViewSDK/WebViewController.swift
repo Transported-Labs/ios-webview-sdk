@@ -22,11 +22,14 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     let cueSDKName = "cueSDK"
     let torchServiceName = "torch"
     let vibrationServiceName = "vibration"
+    let permissionsServiceName = "permissions"
     let onMethodName = "on"
     let offMethodName = "off"
     let checkIsOnMethodName = "isOn"
     let vibrateMethodName = "vibrate"
     let sparkleMethodName = "sparkle"
+    let askMicMethodName = "getMicPermission"
+    let askCamMethodName = "getCameraPermission"
     let testErrorMethodName = "testError"
     
     var curRequestId: Int? = nil
@@ -101,7 +104,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         origin: WKSecurityOrigin,initiatedByFrame
         frame: WKFrameInfo,type: WKMediaCaptureType,
         decisionHandler: @escaping (WKPermissionDecision) -> Void){
-        if (type == .microphone) {
+        if ((type == .microphone) || (type == .camera)) {
             decisionHandler(.grant)
           }
      }
@@ -214,6 +217,14 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
             }
         }
     }
+    
+    private func askForPermission(type: AVMediaType) {
+        AVCaptureDevice.requestAccess(for: type) { allowed in
+            DispatchQueue.main.async {
+                self.sendToJavaScript(result: allowed)
+            }
+        }
+    }
 }
 
 extension WebViewController: WKScriptMessageHandler{
@@ -248,6 +259,14 @@ extension WebViewController: WKScriptMessageHandler{
                         } else {
                             errorToJavaScript("Duration: null is not valid value")
                         }
+                    default: break
+                    }
+                } else if serviceName == permissionsServiceName {
+                    switch methodName {
+                    case askMicMethodName:
+                        askForPermission(type: AVMediaType.audio)
+                    case askCamMethodName:
+                        askForPermission(type: AVMediaType.video)
                     default: break
                     }
                 } else {
