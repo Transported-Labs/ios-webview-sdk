@@ -10,6 +10,7 @@ import UIKit
 import WebKit
 import AVKit
 import CoreHaptics
+import Photos
 
 public enum InvalidUrlError: Error {
     case runtimeError(String)
@@ -30,6 +31,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     let sparkleMethodName = "sparkle"
     let askMicMethodName = "getMicPermission"
     let askCamMethodName = "getCameraPermission"
+    let askSavePhotoMethodName = "getSavePhotoPermission"
     let testErrorMethodName = "testError"
     
     var curRequestId: Int? = nil
@@ -225,6 +227,14 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
             }
         }
     }
+    
+    private func askForSavePhotoPermission() {
+        PHPhotoLibrary.requestAuthorization { status in
+            DispatchQueue.main.async {
+                self.sendToJavaScript(result: (status == .authorized))
+            }
+        }
+    }
 }
 
 extension WebViewController: WKScriptMessageHandler{
@@ -267,10 +277,12 @@ extension WebViewController: WKScriptMessageHandler{
                         askForPermission(type: AVMediaType.audio)
                     case askCamMethodName:
                         askForPermission(type: AVMediaType.video)
+                    case askSavePhotoMethodName:
+                        askForSavePhotoPermission()
                     default: break
                     }
                 } else {
-                    errorToJavaScript("Only services '\(torchServiceName)', '\(vibrationServiceName)' are supported")
+                    errorToJavaScript("Only services '\(torchServiceName)', '\(vibrationServiceName)', '\(permissionsServiceName)' are supported")
                 }
             }
         } else {
