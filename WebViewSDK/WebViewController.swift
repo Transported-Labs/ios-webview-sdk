@@ -24,11 +24,13 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     let torchServiceName = "torch"
     let vibrationServiceName = "vibration"
     let permissionsServiceName = "permissions"
+    let storageServiceName = "storage"
     let onMethodName = "on"
     let offMethodName = "off"
     let checkIsOnMethodName = "isOn"
     let vibrateMethodName = "vibrate"
     let sparkleMethodName = "sparkle"
+    let saveMediaMethodName = "saveMedia"
     let askMicMethodName = "getMicPermission"
     let askCamMethodName = "getCameraPermission"
     let askSavePhotoMethodName = "getSavePhotoPermission"
@@ -189,6 +191,31 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         }
     }
     
+    private func saveMedia(data: String, filename: String) {
+        if ((data != "") && (filename != "")) {
+            let dataDecoded = Data(base64Encoded: data)
+            let decodedimage = UIImage(data: dataDecoded!)!
+            PHPhotoLibrary.shared().performChanges({
+                let creationOptions = PHAssetResourceCreationOptions()
+                creationOptions.originalFilename = filename
+                let request:PHAssetCreationRequest = PHAssetCreationRequest.forAsset()
+                request.addResource(with: .photo, data: dataDecoded!, options: creationOptions)
+            }, completionHandler: { success, error in
+                if success {
+                    self.sendToJavaScript(result: nil)
+                }
+                else if let error = error {
+                    self.errorToJavaScript(error.localizedDescription)
+                }
+                else {
+                    self.errorToJavaScript("Media was not saved correctly")
+                }
+            })
+        } else {
+            errorToJavaScript("Data and filename can not be empty")
+        }
+    }
+    
     private func initHapticEngine() {
         guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
 
@@ -266,6 +293,17 @@ extension WebViewController: WKScriptMessageHandler{
                     case vibrateMethodName:
                         if let duration = params[3] as? Int {
                             makeVibration(duration: duration)
+                        } else {
+                            errorToJavaScript("Duration: null is not valid value")
+                        }
+                    default: break
+                    }
+                } else if serviceName == storageServiceName {
+                    switch methodName {
+                    case saveMediaMethodName:
+                        if let data = params[3] as? String,
+                            let filename = params[4] as? String  {
+                            saveMedia(data: data, filename: filename)
                         } else {
                             errorToJavaScript("Duration: null is not valid value")
                         }
