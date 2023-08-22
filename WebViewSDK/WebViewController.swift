@@ -88,7 +88,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         if UIApplication.shared.canOpenURL(url) {
             webView.load(URLRequest(url: url))
         } else {
-            throw InvalidUrlError.runtimeError("Invalid URL")
+            throw InvalidUrlError.runtimeError("Invalid URL: \(url.absoluteString)")
         }
     }
     
@@ -202,7 +202,9 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
                 request.addResource(with: .photo, data: dataDecoded!, options: creationOptions)
             }, completionHandler: { success, error in
                 if success {
-                    self.sendToJavaScript(result: nil)
+                    DispatchQueue.main.async {
+                        self.sendToJavaScript(result: nil)
+                    }
                 }
                 else if let error = error {
                     self.errorToJavaScript(error.localizedDescription)
