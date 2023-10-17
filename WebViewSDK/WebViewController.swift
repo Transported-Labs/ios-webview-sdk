@@ -133,6 +133,25 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         return devices.first { $0.position == position }
     }
     
+    private func turnTorchToLevel(level: Float) {
+        if let device = torchDevice {
+            do {
+                var intenseLevel = level
+                if intenseLevel < 0.0 {
+                    intenseLevel = 0.0
+                } else if intenseLevel > 1.0 {
+                    intenseLevel = 1.0
+                }
+                try device.lockForConfiguration()
+                try device.setTorchModeOn(level: intenseLevel)
+                device.unlockForConfiguration()
+                sendToJavaScript(result: nil)
+            } catch {
+                errorToJavaScript("Torch to level could not be used")
+            }
+        }
+    }
+    
     private func turnTorch(isOn: Bool) {
         if let device = torchDevice {
             do {
@@ -275,7 +294,11 @@ extension WebViewController: WKScriptMessageHandler{
                 if serviceName == torchServiceName {
                     switch methodName {
                     case onMethodName:
-                        turnTorch(isOn: true)
+                        if let level = params[3] as? Float {
+                            turnTorchToLevel(level: level)
+                        } else {
+                            turnTorch(isOn: true)
+                        }
                     case offMethodName:
                         turnTorch(isOn: false)
                     case checkIsOnMethodName:
