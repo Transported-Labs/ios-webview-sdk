@@ -30,6 +30,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     let checkIsOnMethodName = "isOn"
     let vibrateMethodName = "vibrate"
     let sparkleMethodName = "sparkle"
+    let advancedSparkleMethodName = "advancedSparkle"
     let saveMediaMethodName = "saveMedia"
     let askMicMethodName = "getMicPermission"
     let askCamMethodName = "getCameraPermission"
@@ -133,21 +134,22 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         return devices.first { $0.position == position }
     }
     
+    fileprivate func adjustedIntenseLevel(_ level: Float) -> Float {
+        let minLevel: Float = 0.001
+        let maxLevel: Float = 1.0// - minLevel
+        return (level < minLevel) ? minLevel : ((level > maxLevel) ? maxLevel : level)
+    }
+    
     private func turnTorchToLevel(level: Float) {
         if let device = torchDevice {
             do {
-                var intenseLevel = level
-                if intenseLevel < 0.0 {
-                    intenseLevel = 0.0
-                } else if intenseLevel > 1.0 {
-                    intenseLevel = 1.0
-                }
+                let intenseLevel = adjustedIntenseLevel(level)
                 try device.lockForConfiguration()
                 try device.setTorchModeOn(level: intenseLevel)
                 device.unlockForConfiguration()
                 sendToJavaScript(result: nil)
             } catch {
-                errorToJavaScript("Torch to level could not be used")
+                errorToJavaScript("Torch to level could not be used, error: \(error)")
             }
         }
     }
@@ -160,7 +162,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
                 device.unlockForConfiguration()
                 sendToJavaScript(result: nil)
             } catch {
-                errorToJavaScript("Torch could not be used")
+                errorToJavaScript("Torch could not be used, error: \(error)")
             }
         }
     }
@@ -169,6 +171,101 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         if let device = torchDevice {
             let isOn = (device.torchMode == .on)
             sendToJavaScript(result: isOn)
+        }
+    }
+    
+    fileprivate func debugMessageToJS(_ message: String) {
+        // Is used for debug purposes
+//        DispatchQueue.main.async {
+//            self.sendToJavaScript(result: nil, errorMessage: message)
+//        }
+    }
+    
+    private func advancedSparkle(rampUpMs: Int, sustainMs: Int, rampDownMs: Int, intensity: Float) {
+        let deltaLevel: Float = 0.1
+        let minLevel: Float = deltaLevel
+        
+        let totalDuration = rampUpMs + sustainMs + rampDownMs
+        if let device = torchDevice {
+            do {
+                let intenseLevel = adjustedIntenseLevel(intensity)
+                try device.lockForConfiguration()
+                // Make ramp up / down only when intensity is high enough
+                if intenseLevel >= minLevel {
+                    var isSparkling = true
+                    // Create a work item for changing light
+                    let workItem = DispatchWorkItem {
+                        do {
+                            if (rampUpMs > 0) {
+                                let framesUp = stride(from: 0.0, to: intenseLevel, by: deltaLevel)
+                                let delayUpMs = Int(rampUpMs / (framesUp.underestimatedCount + 1))
+                                for i in framesUp {
+                                    if isSparkling {
+                                        self.debugMessageToJS("rampUp: \(i)")
+                                        try device.setTorchModeOn(level: self.adjustedIntenseLevel(i))
+                                    }
+                                    usleep(UInt32(delayUpMs * 1000))
+                                }
+                            }
+                            if (sustainMs > 0) {
+                                if isSparkling {
+                                    self.debugMessageToJS("sustain: \(intenseLevel)")
+                                    try device.setTorchModeOn(level: intenseLevel)
+                                }
+                                usleep(UInt32(sustainMs * 1000))
+                            }
+                            if (rampDownMs > 0) {
+                                let framesDown = stride(from: intenseLevel-deltaLevel, through: 0.0, by: -deltaLevel)
+                                let delayDownMs = Int(rampDownMs / (framesDown.underestimatedCount + 1))
+                                for i in framesDown {
+                                    if isSparkling {
+                                        self.debugMessageToJS("rampDown: \(i)")
+                                        try device.setTorchModeOn(level: self.adjustedIntenseLevel(i))
+                                    } else {
+                                        self.debugMessageToJS("Skipped rampDown: \(i)")
+                                    }
+                                    usleep(UInt32(delayDownMs * 1000))
+                                }
+                            }
+                        } catch {
+                            self.errorToJavaScript("Torch could not be used inside advancedSparkle, error: \(error)")
+                        }
+                    }
+                    let dispatchGroup = DispatchGroup()
+                    // Use .default thread instead of .background due to higher delay accuracy
+                    DispatchQueue.global(qos: .default).async(group: dispatchGroup, execute: workItem)
+                    // Stop workItem after total duration milliseconds
+                    DispatchQueue.main.asyncAfter(deadline: .now() + Double(totalDuration) / 1000.0, execute: {
+                        isSparkling = false
+                        workItem.cancel()
+                        device.torchMode = .off
+                        device.unlockForConfiguration()
+                        self.debugMessageToJS("stopped after:\(totalDuration) ms")
+                        self.sendToJavaScript(result: nil)
+                    })
+                } else {
+                    // If intensity is too small just turn on for some time
+                    // Turned on minimum light for rampUp time
+                    try device.setTorchModeOn(level: self.adjustedIntenseLevel(0))
+                    self.debugMessageToJS("set min light during rampUp for: \(rampUpMs) ms")
+                    usleep(UInt32(rampUpMs * 1000))
+                    try device.setTorchModeOn(level: intenseLevel)
+                    // Stay turned on maximum for sustain time
+                    self.debugMessageToJS("set max light \(intenseLevel) during sustain for: \(sustainMs) ms")
+                    usleep(UInt32(sustainMs * 1000))
+                    // Turned on minimum light for rampDown time
+                    try device.setTorchModeOn(level: self.adjustedIntenseLevel(0))
+                    self.debugMessageToJS("set min light during rampDown for: \(rampDownMs) ms")
+                    usleep(UInt32(rampDownMs * 1000))
+                    // Turn off light
+                    device.torchMode = .off
+                    device.unlockForConfiguration()
+                    self.debugMessageToJS("finally stopped after:\(totalDuration) ms")
+                    self.sendToJavaScript(result: nil)
+                }
+            } catch {
+                errorToJavaScript("Torch could not be used for advancedSparkle, error: \(error)")
+            }
         }
     }
     
@@ -202,7 +299,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
                         self.sendToJavaScript(result: nil)
                     })
                 } catch {
-                    errorToJavaScript("Torch could not be used for sparkle")
+                    errorToJavaScript("Torch could not be used for sparkle, error: \(error)")
                 }
             }
         } else {
@@ -294,8 +391,14 @@ extension WebViewController: WKScriptMessageHandler{
                 if serviceName == torchServiceName {
                     switch methodName {
                     case onMethodName:
-                        if let level = params[3] as? Float {
-                            turnTorchToLevel(level: level)
+                        if params.count > 3 {
+                            // Float should be processed as Double to avoid error
+                            if let level = params[3] as? Double {
+                                turnTorchToLevel(level: Float(level))
+                            } else {
+                                let level = params[3]
+                                errorToJavaScript("Level is not valid float value: \(level ?? "")")
+                            }
                         } else {
                             turnTorch(isOn: true)
                         }
@@ -308,6 +411,17 @@ extension WebViewController: WKScriptMessageHandler{
                             sparkle(duration: duration)
                         } else {
                             errorToJavaScript("Duration: null is not valid value")
+                        }
+                    case advancedSparkleMethodName:
+                        if params.count > 6 {
+                            if let rampUpMs = params[3] as? Int {
+                                if let sustainMs = params[4] as? Int {
+                                    if let rampDownMs = params[5] as? Int {
+                                        if let intensity = params[6] as? Double {
+                                            advancedSparkle(rampUpMs: rampUpMs, sustainMs: sustainMs, rampDownMs: rampDownMs, intensity: Float(intensity))
+                                        }}}}
+                        } else {
+                            errorToJavaScript("Needed more params for advancedSparkle: rampUpMs: Int, sustainMs: Int, rampDownMs: Int, intensity: Float")
                         }
                     case testErrorMethodName:
                         errorToJavaScript("This is the test error message")
