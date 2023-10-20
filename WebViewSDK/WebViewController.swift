@@ -181,88 +181,68 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
 //        }
     }
     
+    fileprivate func sleepMs(_ delayMs: Int) {
+        usleep(UInt32(delayMs * 1000))
+    }
+    
+    fileprivate func nowMs() -> Int {
+        return Int(CACurrentMediaTime() * 1000.0)
+    }
+    
     private func advancedSparkle(rampUpMs: Int, sustainMs: Int, rampDownMs: Int, intensity: Float) {
-        let deltaLevel: Float = 0.1
-        let minLevel: Float = deltaLevel
-        
+        let blinkDelayMs: Int = 50
         let totalDuration = rampUpMs + sustainMs + rampDownMs
         if let device = torchDevice {
             do {
                 let intenseLevel = adjustedIntenseLevel(intensity)
                 try device.lockForConfiguration()
-                // Make ramp up / down only when intensity is high enough
-                if intenseLevel >= minLevel {
-                    var isSparkling = true
-                    // Create a work item for changing light
-                    let workItem = DispatchWorkItem {
-                        do {
-                            if (rampUpMs > 0) {
-                                let framesUp = stride(from: 0.0, to: intenseLevel, by: deltaLevel)
-                                let delayUpMs = Int(rampUpMs / (framesUp.underestimatedCount + 1))
-                                for i in framesUp {
-                                    if isSparkling {
-                                        self.debugMessageToJS("rampUp: \(i)")
-                                        try device.setTorchModeOn(level: self.adjustedIntenseLevel(i))
-                                    }
-                                    usleep(UInt32(delayUpMs * 1000))
-                                }
-                            }
-                            if (sustainMs > 0) {
-                                if isSparkling {
-                                    self.debugMessageToJS("sustain: \(intenseLevel)")
-                                    try device.setTorchModeOn(level: intenseLevel)
-                                }
-                                usleep(UInt32(sustainMs * 1000))
-                            }
-                            if (rampDownMs > 0) {
-                                let framesDown = stride(from: intenseLevel-deltaLevel, through: 0.0, by: -deltaLevel)
-                                let delayDownMs = Int(rampDownMs / (framesDown.underestimatedCount + 1))
-                                for i in framesDown {
-                                    if isSparkling {
-                                        self.debugMessageToJS("rampDown: \(i)")
-                                        try device.setTorchModeOn(level: self.adjustedIntenseLevel(i))
-                                    } else {
-                                        self.debugMessageToJS("Skipped rampDown: \(i)")
-                                    }
-                                    usleep(UInt32(delayDownMs * 1000))
-                                }
-                            }
-                        } catch {
-                            self.errorToJavaScript("Torch could not be used inside advancedSparkle, error: \(error)")
+                var isSparkling = true
+                // Create a work item for changing light
+                let workItem = DispatchWorkItem { [self] in
+                    do {
+                        let rampUpStart = nowMs()
+                        var currentRampUpTime = 0
+                        while ((currentRampUpTime < rampUpMs) && isSparkling) {
+                            let upIntensity = Float(currentRampUpTime) / Float(rampUpMs) * intenseLevel
+                            debugMessageToJS("rampUp: \(upIntensity)")
+                            try device.setTorchModeOn(level: adjustedIntenseLevel(upIntensity))
+                            sleepMs(blinkDelayMs)
+                            currentRampUpTime = nowMs() - rampUpStart
                         }
+                        if isSparkling {
+                            debugMessageToJS("sustain: \(intenseLevel)")
+                            try device.setTorchModeOn(level: intenseLevel)
+                            sleepMs(sustainMs)
+                        }
+                        let rampDownStart = nowMs()
+                        var currentRampDownTime = 0
+                        while ((currentRampDownTime < rampDownMs) && isSparkling){
+                            let downIntensity = (1.0 - Float(currentRampDownTime) / Float(rampDownMs)) * intenseLevel
+                            debugMessageToJS("rampDownn: \(downIntensity)")
+                            try device.setTorchModeOn(level: adjustedIntenseLevel(downIntensity))
+                            sleepMs(blinkDelayMs)
+                            currentRampDownTime = nowMs() - rampDownStart
+                        }
+                        if isSparkling {
+                            debugMessageToJS("turned off inside")
+                            device.torchMode = .off
+                        }
+                    } catch {
+                        errorToJavaScript("Torch could not be used inside advancedSparkle, error: \(error)")
                     }
-                    let dispatchGroup = DispatchGroup()
-                    // Use .default thread instead of .background due to higher delay accuracy
-                    DispatchQueue.global(qos: .default).async(group: dispatchGroup, execute: workItem)
-                    // Stop workItem after total duration milliseconds
-                    DispatchQueue.main.asyncAfter(deadline: .now() + Double(totalDuration) / 1000.0, execute: {
-                        isSparkling = false
-                        workItem.cancel()
-                        device.torchMode = .off
-                        device.unlockForConfiguration()
-                        self.debugMessageToJS("stopped after:\(totalDuration) ms")
-                        self.sendToJavaScript(result: nil)
-                    })
-                } else {
-                    // If intensity is too small just turn on for some time
-                    // Turned on minimum light for rampUp time
-                    try device.setTorchModeOn(level: self.adjustedIntenseLevel(0))
-                    self.debugMessageToJS("set min light during rampUp for: \(rampUpMs) ms")
-                    usleep(UInt32(rampUpMs * 1000))
-                    try device.setTorchModeOn(level: intenseLevel)
-                    // Stay turned on maximum for sustain time
-                    self.debugMessageToJS("set max light \(intenseLevel) during sustain for: \(sustainMs) ms")
-                    usleep(UInt32(sustainMs * 1000))
-                    // Turned on minimum light for rampDown time
-                    try device.setTorchModeOn(level: self.adjustedIntenseLevel(0))
-                    self.debugMessageToJS("set min light during rampDown for: \(rampDownMs) ms")
-                    usleep(UInt32(rampDownMs * 1000))
-                    // Turn off light
+                }
+                let dispatchGroup = DispatchGroup()
+                // Use .default thread instead of .background due to higher delay accuracy
+                DispatchQueue.global(qos: .default).async(group: dispatchGroup, execute: workItem)
+                // Stop workItem after total duration milliseconds
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double(totalDuration) / 1000.0, execute: {
+                    isSparkling = false
+                    workItem.cancel()
                     device.torchMode = .off
                     device.unlockForConfiguration()
-                    self.debugMessageToJS("finally stopped after:\(totalDuration) ms")
+                    self.debugMessageToJS("stopped after:\(totalDuration) ms")
                     self.sendToJavaScript(result: nil)
-                }
+                })
             } catch {
                 errorToJavaScript("Torch could not be used for advancedSparkle, error: \(error)")
             }
