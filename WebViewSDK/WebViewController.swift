@@ -35,6 +35,9 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     let askMicMethodName = "getMicPermission"
     let askCamMethodName = "getCameraPermission"
     let askSavePhotoMethodName = "getSavePhotoPermission"
+    let hasMicMethodName = "hasMicPermission"
+    let hasCamMethodName = "hasCameraPermission"
+    let hasSavePhotoMethodName = "hasSavePhotoPermission"
     let testErrorMethodName = "testError"
     
     var curRequestId: Int? = nil
@@ -345,12 +348,22 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         }
     }
     
+    private func checkHasPermission(type: AVMediaType) {
+        let result = (AVCaptureDevice.authorizationStatus(for: type) ==  .authorized)
+        self.sendToJavaScript(result: result)
+    }
+    
     private func askForPermission(type: AVMediaType) {
         AVCaptureDevice.requestAccess(for: type) { allowed in
             DispatchQueue.main.async {
                 self.sendToJavaScript(result: allowed)
             }
         }
+    }
+    
+    private func checkHasSavePhotoPermission() {
+        let result = (PHPhotoLibrary.authorizationStatus() == .authorized)
+        self.sendToJavaScript(result: result)
     }
     
     private func askForSavePhotoPermission() {
@@ -436,6 +449,12 @@ extension WebViewController: WKScriptMessageHandler{
                         askForPermission(type: AVMediaType.video)
                     case askSavePhotoMethodName:
                         askForSavePhotoPermission()
+                    case hasMicMethodName:
+                        checkHasPermission(type: AVMediaType.audio)
+                    case hasCamMethodName:
+                        checkHasPermission(type: AVMediaType.video)
+                    case hasSavePhotoMethodName:
+                        checkHasSavePhotoPermission()
                     default: break
                     }
                 } else {
