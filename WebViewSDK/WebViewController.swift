@@ -193,7 +193,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     }
     
     private func advancedSparkle(rampUpMs: Int, sustainMs: Int, rampDownMs: Int, intensity: Float) {
-        let blinkDelayMs: Int = 50
+        let blinkDelayMs: Int = 20
         let totalDuration = rampUpMs + sustainMs + rampDownMs
         if let device = torchDevice {
             do {
