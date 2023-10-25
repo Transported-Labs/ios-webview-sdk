@@ -193,7 +193,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     }
     
     private func advancedSparkle(rampUpMs: Int, sustainMs: Int, rampDownMs: Int, intensity: Float) {
-        let blinkDelayMs: Int = 20
+        let blinkDelayMs: Int = 10
         let totalDuration = rampUpMs + sustainMs + rampDownMs
         if let device = torchDevice {
             do {
@@ -208,7 +208,9 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
                         while ((currentRampUpTime < rampUpMs) && isSparkling) {
                             let upIntensity = Float(currentRampUpTime) / Float(rampUpMs) * intenseLevel
                             debugMessageToJS("rampUp: \(upIntensity)")
-                            try device.setTorchModeOn(level: adjustedIntenseLevel(upIntensity))
+                            if upIntensity > 0.0 {
+                                try device.setTorchModeOn(level: upIntensity)
+                            }
                             sleepMs(blinkDelayMs)
                             currentRampUpTime = nowMs() - rampUpStart
                         }
@@ -222,7 +224,9 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
                         while ((currentRampDownTime < rampDownMs) && isSparkling){
                             let downIntensity = (1.0 - Float(currentRampDownTime) / Float(rampDownMs)) * intenseLevel
                             debugMessageToJS("rampDownn: \(downIntensity)")
-                            try device.setTorchModeOn(level: adjustedIntenseLevel(downIntensity))
+                            if downIntensity > 0.0 {
+                                try device.setTorchModeOn(level: downIntensity)
+                            }
                             sleepMs(blinkDelayMs)
                             currentRampDownTime = nowMs() - rampDownStart
                         }
@@ -293,7 +297,6 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     private func saveMedia(data: String, filename: String) {
         if ((data != "") && (filename != "")) {
             let dataDecoded = Data(base64Encoded: data)
-            let decodedimage = UIImage(data: dataDecoded!)!
             PHPhotoLibrary.shared().performChanges({
                 let creationOptions = PHAssetResourceCreationOptions()
                 creationOptions.originalFilename = filename
