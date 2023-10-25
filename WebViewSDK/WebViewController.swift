@@ -25,6 +25,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     let vibrationServiceName = "vibration"
     let permissionsServiceName = "permissions"
     let storageServiceName = "storage"
+    let cameraServiceName = "camera"
     let onMethodName = "on"
     let offMethodName = "off"
     let checkIsOnMethodName = "isOn"
@@ -38,6 +39,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     let hasMicMethodName = "hasMicPermission"
     let hasCamMethodName = "hasCameraPermission"
     let hasSavePhotoMethodName = "hasSavePhotoPermission"
+    let openCameraMethodName = "openCamera"
     let testErrorMethodName = "testError"
     
     var curRequestId: Int? = nil
@@ -376,6 +378,13 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
             }
         }
     }
+    
+    private func openCamera() {
+        let cameraController = CameraController()
+        cameraController.modalPresentationStyle = .overFullScreen
+        self.present(cameraController, animated:true, completion:nil)
+        sendToJavaScript(result: nil)
+    }
 }
 
 extension WebViewController: WKScriptMessageHandler{
@@ -458,6 +467,12 @@ extension WebViewController: WKScriptMessageHandler{
                         checkHasPermission(type: AVMediaType.video)
                     case hasSavePhotoMethodName:
                         checkHasSavePhotoPermission()
+                    default: break
+                    }
+                } else if serviceName == cameraServiceName {
+                    switch methodName {
+                    case openCameraMethodName:
+                        openCamera()
                     default: break
                     }
                 } else {

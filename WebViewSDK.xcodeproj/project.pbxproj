@@ -9,12 +9,22 @@
 /* Begin PBXBuildFile section */
 		81F5A9542A0124E00059B694 /* WebViewSDK.h in Headers */ = {isa = PBXBuildFile; fileRef = 81F5A9512A0124E00059B694 /* WebViewSDK.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		81F5A95F2A0125D40059B694 /* WebViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81F5A95C2A0125D30059B694 /* WebViewController.swift */; };
+		81F7B6132AE6D4F200719C59 /* PhotoButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81F7B60E2AE6D4F100719C59 /* PhotoButton.swift */; };
+		81F7B6142AE6D4F200719C59 /* BottomBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81F7B60F2AE6D4F100719C59 /* BottomBar.swift */; };
+		81F7B6172AE6D76500719C59 /* CameraController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81F7B6162AE6D76500719C59 /* CameraController.swift */; };
+		81F7B6192AE79B0A00719C59 /* VideoButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81F7B6182AE79B0A00719C59 /* VideoButton.swift */; };
+		81F7B61B2AE7FADD00719C59 /* CameraLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81F7B61A2AE7FADD00719C59 /* CameraLink.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		81F5A94E2A0124E00059B694 /* WebViewSDK.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = WebViewSDK.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		81F5A9512A0124E00059B694 /* WebViewSDK.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WebViewSDK.h; sourceTree = "<group>"; };
 		81F5A95C2A0125D30059B694 /* WebViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WebViewController.swift; sourceTree = "<group>"; };
+		81F7B60E2AE6D4F100719C59 /* PhotoButton.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PhotoButton.swift; sourceTree = "<group>"; };
+		81F7B60F2AE6D4F100719C59 /* BottomBar.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BottomBar.swift; sourceTree = "<group>"; };
+		81F7B6162AE6D76500719C59 /* CameraController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraController.swift; sourceTree = "<group>"; };
+		81F7B6182AE79B0A00719C59 /* VideoButton.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = VideoButton.swift; sourceTree = "<group>"; };
+		81F7B61A2AE7FADD00719C59 /* CameraLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraLink.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -47,10 +57,23 @@
 		81F5A9502A0124E00059B694 /* WebViewSDK */ = {
 			isa = PBXGroup;
 			children = (
-				81F5A95C2A0125D30059B694 /* WebViewController.swift */,
 				81F5A9512A0124E00059B694 /* WebViewSDK.h */,
+				81F5A95C2A0125D30059B694 /* WebViewController.swift */,
+				81F7B6162AE6D76500719C59 /* CameraController.swift */,
+				81F7B61A2AE7FADD00719C59 /* CameraLink.swift */,
+				81F7B60B2AE6D4F100719C59 /* CameraUI */,
 			);
 			path = WebViewSDK;
+			sourceTree = "<group>";
+		};
+		81F7B60B2AE6D4F100719C59 /* CameraUI */ = {
+			isa = PBXGroup;
+			children = (
+				81F7B60E2AE6D4F100719C59 /* PhotoButton.swift */,
+				81F7B6182AE79B0A00719C59 /* VideoButton.swift */,
+				81F7B60F2AE6D4F100719C59 /* BottomBar.swift */,
+			);
+			path = CameraUI;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -132,7 +155,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				81F7B6132AE6D4F200719C59 /* PhotoButton.swift in Sources */,
+				81F7B61B2AE7FADD00719C59 /* CameraLink.swift in Sources */,
+				81F7B6172AE6D76500719C59 /* CameraController.swift in Sources */,
 				81F5A95F2A0125D40059B694 /* WebViewController.swift in Sources */,
+				81F7B6142AE6D4F200719C59 /* BottomBar.swift in Sources */,
+				81F7B6192AE79B0A00719C59 /* VideoButton.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -276,7 +304,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -287,7 +315,7 @@
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++20";
 				PRODUCT_BUNDLE_IDENTIFIER = com.cueaudio.WebViewSDK;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				SKIP_INSTALL = YES;
+				SKIP_INSTALL = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -309,7 +337,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -320,7 +348,7 @@
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++20";
 				PRODUCT_BUNDLE_IDENTIFIER = com.cueaudio.WebViewSDK;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				SKIP_INSTALL = YES;
+				SKIP_INSTALL = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
