@@ -24,7 +24,7 @@ class CameraController: UIViewController {
         return view
     }()
     private var bottomBar: BottomBar!
-    private var cameraLink: CameraLink!
+    private lazy var cameraLink = CameraLink()
     private var isVideoRecording: Bool = false
 
     init(cameraLayout: CameraLayout) {
@@ -39,7 +39,10 @@ class CameraController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
-        cameraLink = CameraLink()
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
         cameraLink.setup { (error) in
             if error != nil {
                 print(error!.localizedDescription)

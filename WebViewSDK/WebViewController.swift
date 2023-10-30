@@ -51,6 +51,9 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     lazy var webView: WKWebView = {
         let webConfiguration = WKWebViewConfiguration()
         webConfiguration.allowsInlineMediaPlayback = true
+        webConfiguration.defaultWebpagePreferences.allowsContentJavaScript = true
+        webConfiguration.allowsAirPlayForMediaPlayback = true
+        webConfiguration.allowsPictureInPictureMediaPlayback = true
         let wv = WKWebView(frame: .zero, configuration: webConfiguration)
         wv.uiDelegate = self
         wv.navigationDelegate = self
@@ -93,7 +96,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         let contentController = self.webView.configuration.userContentController
         contentController.add(self, name: cueSDKName)
         // Init HapticEngine
-        initHapticEngine()
+//        initHapticEngine()
     }
     
     ///  Navigates to the url in embedded WKWebView-object
@@ -256,7 +259,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
                 // Use .default thread instead of .background due to higher delay accuracy
                 DispatchQueue.global(qos: .default).async(group: dispatchGroup, execute: workItem)
                 // Stop workItem after total duration milliseconds
-                DispatchQueue.main.asyncAfter(deadline: .now() + Double(totalDuration) / 1000.0, execute: {
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double(totalDuration) / 1000.0 + 0.1, execute: {
                     isSparkling = false
                     workItem.cancel()
                     if device.isTorchModeSupported(.off) {
@@ -341,18 +344,69 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         }
     }
     
+    private func initAudioSession() {
+        do {
+//            try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default, options: [.mixWithOthers])
+            try AVAudioSession.sharedInstance().setCategory(.playAndRecord)
+            try AVAudioSession.sharedInstance().setAllowHapticsAndSystemSoundsDuringRecording(true)
+        } catch {
+            errorToJavaScript("initAudioSession failed: \(error.localizedDescription)")
+        }
+    }
+    
     private func initHapticEngine() {
         guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
 
         do {
             hapticEngine = try CHHapticEngine()
+            // The reset handler provides an opportunity to restart the engine.
+            hapticEngine?.resetHandler = {
+                print("Reset Handler: Restarting the hapticEngine.")
+                do {
+                    // Try restarting the engine.
+                    try self.hapticEngine?.start()
+                } catch {
+                    self.errorToJavaScript("Failed to restart the hapticEngine: \(error.localizedDescription)")
+                }
+            }
+            // The stopped handler alerts engine stoppage.
+            hapticEngine?.stoppedHandler = { reason in
+                print("Stop Handler: hapticEngine stopped for reason: \(reason.rawValue)")
+                switch reason {
+                case .audioSessionInterrupt: print("hapticEngine: Audio session interrupt")
+                case .applicationSuspended: print("hapticEngine: Application suspended")
+                case .idleTimeout: print("hapticEngine: Idle timeout")
+                case .systemError: print("hapticEngine: System error")
+                case .notifyWhenFinished:
+                    print("hapticEngine: notifyWhenFinished")
+                case .engineDestroyed:
+                    print("hapticEngine: engineDestroyed")
+                case .gameControllerDisconnect:
+                    print("hapticEngine: gameControllerDisconnect")
+                @unknown default:
+                    print("hapticEngine: Unknown error")
+                }
+                do {
+                    // Try restarting the engine.
+                    print("stoppedHandler: Try restarting the hapticEngine.")
+                    try self.hapticEngine?.start()
+                } catch {
+                    self.errorToJavaScript("Failed to restart the hapticEngine: \(error.localizedDescription)")
+                }
+            }
             try hapticEngine?.start()
         } catch {
-            errorToJavaScript("There was an error creating the haptic engine: \(error.localizedDescription)")
+            errorToJavaScript("There was an error creating the hapticEngine: \(error.localizedDescription)")
         }
     }
     
     private func makeVibration(duration: Int) {
+        initAudioSession()
+        AudioServicesPlayAlertSound(kSystemSoundID_Vibrate)
+//        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+    }
+    
+    private func makeVibration2(duration: Int) {
         if let engine = hapticEngine {
             let intensity = CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0)
             let sharpness = CHHapticEventParameter(parameterID: .hapticSharpness, value: 1.0)
@@ -399,6 +453,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     }
     
     private func openCamera(cameraLayout: CameraLayout) {
+        initAudioSession()
         let cameraController = CameraController(cameraLayout: cameraLayout)
         cameraController.modalPresentationStyle = .overFullScreen
         self.present(cameraController, animated:true, completion:nil)
@@ -530,7 +585,9 @@ extension WebViewController: WKScriptMessageHandler{
 
     private func errorToJavaScript(_ errorMessage: String) {
         print(errorMessage)
-        sendToJavaScript(result: nil, errorMessage: errorMessage)
+        DispatchQueue.main.async {
+            self.sendToJavaScript(result: nil, errorMessage: errorMessage)
+        }
     }
     
     private func sendToJavaScript(result: Any?, errorMessage: String = "") {
