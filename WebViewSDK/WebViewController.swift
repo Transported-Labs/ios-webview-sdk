@@ -40,6 +40,9 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     let hasCamMethodName = "hasCameraPermission"
     let hasSavePhotoMethodName = "hasSavePhotoPermission"
     let openCameraMethodName = "openCamera"
+    let openPhotoCameraMethodName = "openPhotoCamera"
+    let openVideoCameraMethodName = "openVideoCamera"
+    
     let testErrorMethodName = "testError"
     
     var curRequestId: Int? = nil
@@ -67,6 +70,10 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         }
         return nil
     }()
+    
+    public override var prefersStatusBarHidden: Bool {
+        return true
+    }
     
     public override func viewDidLoad() {
         super.viewDidLoad()
@@ -163,7 +170,10 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         if let device = torchDevice {
             do {
                 try device.lockForConfiguration()
-                device.torchMode = isOn ? .on : .off
+                let mode: AVCaptureDevice.TorchMode = isOn ? .on : .off
+                if device.isTorchModeSupported(mode) {
+                    device.torchMode = mode
+                }
                 device.unlockForConfiguration()
                 sendToJavaScript(result: nil)
             } catch {
@@ -234,7 +244,9 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
                         }
                         if isSparkling {
                             debugMessageToJS("turned off inside")
-                            device.torchMode = .off
+                            if device.isTorchModeSupported(.off) {
+                                device.torchMode = .off
+                            }
                         }
                     } catch {
                         errorToJavaScript("Torch could not be used inside advancedSparkle, error: \(error)")
@@ -247,7 +259,9 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
                 DispatchQueue.main.asyncAfter(deadline: .now() + Double(totalDuration) / 1000.0, execute: {
                     isSparkling = false
                     workItem.cancel()
-                    device.torchMode = .off
+                    if device.isTorchModeSupported(.off) {
+                        device.torchMode = .off
+                    }
                     device.unlockForConfiguration()
                     self.debugMessageToJS("stopped after:\(totalDuration) ms")
                     self.sendToJavaScript(result: nil)
@@ -271,7 +285,10 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
                         var isOn = false
                         while (isSparkling) {
                             isOn = !isOn
-                            device.torchMode = isOn ? .on : .off
+                            let mode: AVCaptureDevice.TorchMode = isOn ? .on : .off
+                            if device.isTorchModeSupported(mode) {
+                                device.torchMode = mode
+                            }
                             usleep(blinkDelay)
                         }
                     }
@@ -283,7 +300,9 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
                     DispatchQueue.main.asyncAfter(deadline: .now() + Double(duration) / 1000.0, execute: {
                         isSparkling = false
                         workItem.cancel()
-                        device.torchMode = .off
+                        if device.isTorchModeSupported(.off) {
+                            device.torchMode = .off
+                        }
                         device.unlockForConfiguration()
                         self.sendToJavaScript(result: nil)
                     })
@@ -379,8 +398,8 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         }
     }
     
-    private func openCamera() {
-        let cameraController = CameraController()
+    private func openCamera(cameraLayout: CameraLayout) {
+        let cameraController = CameraController(cameraLayout: cameraLayout)
         cameraController.modalPresentationStyle = .overFullScreen
         self.present(cameraController, animated:true, completion:nil)
         sendToJavaScript(result: nil)
@@ -472,7 +491,11 @@ extension WebViewController: WKScriptMessageHandler{
                 } else if serviceName == cameraServiceName {
                     switch methodName {
                     case openCameraMethodName:
-                        openCamera()
+                        openCamera(cameraLayout: CameraLayout.both)
+                    case openPhotoCameraMethodName:
+                        openCamera(cameraLayout: CameraLayout.photoOnly)
+                    case openVideoCameraMethodName:
+                        openCamera(cameraLayout: CameraLayout.videoOnly)
                     default: break
                     }
                 } else {

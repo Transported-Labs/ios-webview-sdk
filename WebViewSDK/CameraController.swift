@@ -8,6 +8,12 @@
 import UIKit
 import AVFoundation
 
+enum CameraLayout {
+    case both
+    case photoOnly
+    case videoOnly
+}
+
 class CameraController: UIViewController {
 
     private lazy var previewArea: UIImageView = {
@@ -17,12 +23,13 @@ class CameraController: UIViewController {
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
     }()
-    private lazy var bottomBar = BottomBar()
+    private var bottomBar: BottomBar!
     private var cameraLink: CameraLink!
     private var isVideoRecording: Bool = false
 
-    init() {
+    init(cameraLayout: CameraLayout) {
         super.init(nibName: nil, bundle: nil)
+        bottomBar = BottomBar(cameraLayout: cameraLayout)
     }
 
     required init?(coder: NSCoder) {
