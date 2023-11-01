@@ -51,7 +51,6 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     lazy var webView: WKWebView = {
         let webConfiguration = WKWebViewConfiguration()
         webConfiguration.allowsInlineMediaPlayback = true
-        webConfiguration.defaultWebpagePreferences.allowsContentJavaScript = true
         webConfiguration.allowsAirPlayForMediaPlayback = true
         webConfiguration.allowsPictureInPictureMediaPlayback = true
         let wv = WKWebView(frame: .zero, configuration: webConfiguration)
@@ -92,7 +91,9 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         refreshControl.addTarget(self, action: #selector(reloadWebView(_:)), for: .valueChanged)
         webView.scrollView.addSubview(refreshControl)
         // Adding cueSDK scripting object
-        webView.configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+        if #available(iOS 14.0, *) {
+            webView.configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+        }
         let contentController = self.webView.configuration.userContentController
         contentController.add(self, name: cueSDKName)
         // Init HapticEngine
@@ -119,6 +120,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         self.present(alertController, animated: true, completion: nil)
     }
     
+    @available(iOS 15.0, *)
     public func webView(_ webView: WKWebView,
         requestMediaCapturePermissionFor
         origin: WKSecurityOrigin,initiatedByFrame
@@ -345,9 +347,14 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     }
     
     private func initAudioSession() {
+        let audioSession = AVAudioSession.sharedInstance()
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playAndRecord)
-            try AVAudioSession.sharedInstance().setAllowHapticsAndSystemSoundsDuringRecording(true)
+            #if swift(>=5.0)
+            try audioSession.setCategory(.playAndRecord)
+            #else
+            try audioSession.setCategory(AVAudioSessionCategoryPlayAndRecord)
+            #endif
+            try audioSession.setAllowHapticsAndSystemSoundsDuringRecording(true)
         } catch {
             errorToJavaScript("initAudioSession failed: \(error.localizedDescription)")
         }
