@@ -96,7 +96,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         let contentController = self.webView.configuration.userContentController
         contentController.add(self, name: cueSDKName)
         // Init HapticEngine
-//        initHapticEngine()
+        initHapticEngine()
     }
     
     ///  Navigates to the url in embedded WKWebView-object
@@ -346,7 +346,6 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     
     private func initAudioSession() {
         do {
-//            try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default, options: [.mixWithOthers])
             try AVAudioSession.sharedInstance().setCategory(.playAndRecord)
             try AVAudioSession.sharedInstance().setAllowHapticsAndSystemSoundsDuringRecording(true)
         } catch {
@@ -360,32 +359,8 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         do {
             hapticEngine = try CHHapticEngine()
             // The reset handler provides an opportunity to restart the engine.
-            hapticEngine?.resetHandler = {
-                print("Reset Handler: Restarting the hapticEngine.")
-                do {
-                    // Try restarting the engine.
-                    try self.hapticEngine?.start()
-                } catch {
-                    self.errorToJavaScript("Failed to restart the hapticEngine: \(error.localizedDescription)")
-                }
-            }
-            // The stopped handler alerts engine stoppage.
             hapticEngine?.stoppedHandler = { reason in
                 print("Stop Handler: hapticEngine stopped for reason: \(reason.rawValue)")
-                switch reason {
-                case .audioSessionInterrupt: print("hapticEngine: Audio session interrupt")
-                case .applicationSuspended: print("hapticEngine: Application suspended")
-                case .idleTimeout: print("hapticEngine: Idle timeout")
-                case .systemError: print("hapticEngine: System error")
-                case .notifyWhenFinished:
-                    print("hapticEngine: notifyWhenFinished")
-                case .engineDestroyed:
-                    print("hapticEngine: engineDestroyed")
-                case .gameControllerDisconnect:
-                    print("hapticEngine: gameControllerDisconnect")
-                @unknown default:
-                    print("hapticEngine: Unknown error")
-                }
                 do {
                     // Try restarting the engine.
                     print("stoppedHandler: Try restarting the hapticEngine.")
@@ -400,13 +375,14 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         }
     }
     
-    private func makeVibration(duration: Int) {
+    private func makeVibration2(duration: Int) {
         initAudioSession()
         AudioServicesPlayAlertSound(kSystemSoundID_Vibrate)
 //        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
     }
     
-    private func makeVibration2(duration: Int) {
+    private func makeVibration(duration: Int) {
+        initAudioSession()
         if let engine = hapticEngine {
             let intensity = CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0)
             let sharpness = CHHapticEventParameter(parameterID: .hapticSharpness, value: 1.0)
