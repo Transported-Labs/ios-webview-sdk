@@ -90,11 +90,12 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         super.viewDidLoad()
         
         view.addSubview(webView)
+        let safeArea = view.safeAreaLayoutGuide
         NSLayoutConstraint.activate([
-            webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            webView.topAnchor.constraint(equalTo: view.topAnchor),
-            webView.rightAnchor.constraint(equalTo: view.rightAnchor),
-            webView.bottomAnchor.constraint(equalTo: view.bottomAnchor)])
+            webView.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
+            webView.topAnchor.constraint(equalTo: safeArea.topAnchor),
+            webView.rightAnchor.constraint(equalTo: safeArea.rightAnchor),
+            webView.bottomAnchor.constraint(equalTo: safeArea.bottomAnchor)])
         view.addSubview(exitButton)
         NSLayoutConstraint.activate([
             exitButton.widthAnchor.constraint(equalToConstant: 30),
@@ -114,6 +115,18 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         contentController.add(self, name: cueSDKName)
         // Init HapticEngine
         initHapticEngine()
+    }
+    
+    public override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        // Keep alive during the show
+        UIApplication.shared.isIdleTimerDisabled = true
+    }
+    
+    public override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        // Return keep alive back to false
+        UIApplication.shared.isIdleTimerDisabled = false
     }
     
     ///  Navigates to the url in embedded WKWebView-object
