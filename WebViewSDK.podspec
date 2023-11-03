@@ -16,7 +16,7 @@ Pod::Spec.new do |spec|
   #
 
   spec.name         = "WebViewSDK"
-  spec.version      = "0.0.4"
+  spec.version      = "0.0.5"
   spec.summary      = "WebViewSDK is an assistant library used by Web-version of CUE Live 2.0 Lightshows"
 
   # This description is used to generate tags and improve search results.
@@ -62,7 +62,7 @@ Pod::Spec.new do |spec|
   #  the deployment target. You can optionally include the target after the platform.
   #
 
-  spec.platform     = :ios, "15.0"
+  spec.platform     = :ios, "13.0"
   # spec.platform     = :ios, "5.0"
 
   #  When using multiple platforms

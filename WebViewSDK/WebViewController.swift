@@ -60,6 +60,15 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         return wv
     }()
     
+    private lazy var exitButton: UIButton = {
+        let button = UIButton()
+        button.tintColor = .white
+        button.setImage(UIImage(systemName: "xmark", withConfiguration: UIImage.SymbolConfiguration.init(pointSize: 24, weight: .bold)), for: .normal)
+        button.imageView?.contentMode = .scaleAspectFill
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+    
     lazy var torchDevice: AVCaptureDevice? = {
         if let device = bestCamera(for: .back) {
             if device.hasTorch {
@@ -86,6 +95,13 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
             webView.topAnchor.constraint(equalTo: view.topAnchor),
             webView.rightAnchor.constraint(equalTo: view.rightAnchor),
             webView.bottomAnchor.constraint(equalTo: view.bottomAnchor)])
+        view.addSubview(exitButton)
+        NSLayoutConstraint.activate([
+            exitButton.widthAnchor.constraint(equalToConstant: 30),
+            exitButton.heightAnchor.constraint(equalToConstant: 30),
+            exitButton.topAnchor.constraint(equalTo: view.topAnchor, constant: 20),
+            exitButton.rightAnchor.constraint(equalTo: view.rightAnchor, constant: -16)])
+        exitButton.addTarget(self, action: #selector(exitButtonPressed(_:)), for: .touchUpInside)
         // Adding control for reload web-page on pull down
         let refreshControl = UIRefreshControl()
         refreshControl.addTarget(self, action: #selector(reloadWebView(_:)), for: .valueChanged)
@@ -107,6 +123,12 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         } else {
             throw InvalidUrlError.runtimeError("Invalid URL: \(url.absoluteString)")
         }
+    }
+    
+    @objc private func exitButtonPressed(_ sender: UIButton?) {
+        dismiss(animated: true, completion: nil)
+        // Clear webView
+        webView.load(URLRequest(url: URL(string:"about:blank")!))
     }
     
     ///  Navigates to the local file url in embedded WKWebView-object
