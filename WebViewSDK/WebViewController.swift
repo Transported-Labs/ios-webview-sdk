@@ -114,7 +114,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         let contentController = self.webView.configuration.userContentController
         contentController.add(self, name: cueSDKName)
         // Init HapticEngine
-        initHapticEngine()
+//        initHapticEngine()
     }
     
     public override func viewWillAppear(_ animated: Bool) {
@@ -140,6 +140,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     
     @objc private func exitButtonPressed(_ sender: UIButton?) {
         dismiss(animated: true, completion: nil)
+        turnTorch(isOn: false)
         // Clear webView
         webView.load(URLRequest(url: URL(string:"about:blank")!))
     }
@@ -282,12 +283,6 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
                             sleepMs(blinkDelayMs)
                             currentRampDownTime = nowMs() - rampDownStart
                         }
-                        if isSparkling {
-                            debugMessageToJS("turned off inside")
-                            if device.isTorchModeSupported(.off) {
-                                device.torchMode = .off
-                            }
-                        }
                     } catch {
                         errorToJavaScript("Torch could not be used inside advancedSparkle, error: \(error)")
                     }
@@ -385,11 +380,12 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         let audioSession = AVAudioSession.sharedInstance()
         do {
             #if swift(>=5.0)
-            try audioSession.setCategory(.playAndRecord)
+            try audioSession.setCategory(.playAndRecord, with: .mixWithOthers)
             #else
-            try audioSession.setCategory(AVAudioSessionCategoryPlayAndRecord)
+            try audioSession.setCategory(AVAudioSessionCategoryPlayAndRecord, with: AVAudioSession.CategoryOptions.mixWithOthers)
             #endif
             try audioSession.setAllowHapticsAndSystemSoundsDuringRecording(true)
+            try audioSession.setActive(true)
         } catch {
             errorToJavaScript("initAudioSession failed: \(error.localizedDescription)")
         }
@@ -417,13 +413,13 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         }
     }
     
-    private func makeVibration2(duration: Int) {
+    private func makeVibration(duration: Int) {
         initAudioSession()
         AudioServicesPlayAlertSound(kSystemSoundID_Vibrate)
 //        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
     }
     
-    private func makeVibration(duration: Int) {
+    private func makeVibration2(duration: Int) {
         initAudioSession()
         if let engine = hapticEngine {
             let intensity = CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0)

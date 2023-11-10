@@ -43,11 +43,14 @@ class CameraController: UIViewController {
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        bottomBar.isHidden = true
         cameraLink.setup { (error) in
             if error != nil {
                 print(error!.localizedDescription)
             }
-            try? self.cameraLink.displayPreview(self.previewArea)
+            try? self.cameraLink.displayPreview(self.previewArea) {
+                self.bottomBar.isHidden = false
+            }
         }
     }
 
@@ -114,6 +117,7 @@ extension CameraController: BottomBarDelegate {
     }
     
     func exitButtonPressed() {
+        cameraLink.stopSession()
         dismiss(animated: true, completion: nil)
     }
 }

@@ -14,6 +14,8 @@ class CameraLink: NSObject {
     enum CameraError: Swift.Error {
         case sessionAlreadyRunning
         case sessionIsMissing
+        case videoOutputIsNil
+        case photoOutputIsNil
         case inputIsInvalid
         case operationIsInvalid
         case cameraNotAvailable
@@ -68,10 +70,6 @@ extension CameraLink {
                 }
                 if camera.position == .back {
                     self.backCamera = camera
-                    
-                    try camera.lockForConfiguration()
-                    camera.focusMode = .continuousAutoFocus
-                    camera.unlockForConfiguration()
                 }
             }
             self.audioCaptureDevice = AVCaptureDevice.default(for: AVMediaType.audio)
@@ -126,8 +124,11 @@ extension CameraLink {
             
             self.photoOutput = AVCapturePhotoOutput()
             self.photoOutput?.setPreparedPhotoSettingsArray([AVCapturePhotoSettings(format: [AVVideoCodecKey : AVVideoCodecType.jpeg ])], completionHandler: nil)
-            if captureSession.canAddOutput(self.photoOutput!) {
-                captureSession.addOutput(self.photoOutput!)
+            guard let photoOutput = self.photoOutput else {
+                throw CameraError.photoOutputIsNil
+            }
+            if captureSession.canAddOutput(photoOutput) {
+                captureSession.addOutput(photoOutput)
             }
             self.outputType = .photoOutputType
             captureSession.startRunning()
@@ -139,8 +140,12 @@ extension CameraLink {
             }
 
             self.videoOutput = AVCaptureMovieFileOutput()
-            if captureSession.canAddOutput(self.videoOutput!) {
-                captureSession.addOutput(self.videoOutput!)
+            guard let videoOutput = self.videoOutput else {
+                throw CameraError.videoOutputIsNil
+            }
+            
+            if captureSession.canAddOutput(videoOutput) {
+                captureSession.addOutput(videoOutput)
             }
             
         }
@@ -165,7 +170,7 @@ extension CameraLink {
         }
     }
     
-    func displayPreview(_ view: UIView) throws {
+    func displayPreview(_ view: UIView, completion: @escaping ()-> Void) throws {
         guard let captureSession = self.captureSession, captureSession.isRunning else { throw CameraError.sessionIsMissing }
         
         self.previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
@@ -174,6 +179,7 @@ extension CameraLink {
         
         view.layer.insertSublayer(self.previewLayer!, at: 0)
         self.previewLayer?.frame = CGRect(x: 0, y: 0, width: view.frame.width , height: view.frame.height)
+        completion()
     }
     
     func switchCameras() throws {
@@ -235,7 +241,7 @@ extension CameraLink {
         let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         let fileUrl = paths[0].appendingPathComponent("output.mp4")
         try? FileManager.default.removeItem(at: fileUrl)
-        videoOutput!.startRecording(to: fileUrl, recordingDelegate: self)
+        videoOutput?.startRecording(to: fileUrl, recordingDelegate: self)
         self.videoRecordCompletionBlock = completion
     }
     
@@ -245,6 +251,25 @@ extension CameraLink {
             return
         }
         self.videoOutput?.stopRecording()
+    }
+    
+    func stopSession() {
+        guard let session = self.captureSession else {
+            return
+        }
+        if session.isRunning {
+            DispatchQueue.global().async { [self] in
+                previewLayer?.removeFromSuperlayer()
+                previewLayer = nil
+                captureSession!.stopRunning()
+                for input in captureSession!.inputs {
+                    captureSession!.removeInput(input)
+                }
+                for output in captureSession!.outputs {
+                    captureSession!.removeOutput(output)
+                }
+            }
+        }
     }
 }
 
