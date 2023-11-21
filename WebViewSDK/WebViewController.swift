@@ -110,7 +110,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
             exitButton.widthAnchor.constraint(equalToConstant: 30),
             exitButton.heightAnchor.constraint(equalToConstant: 30),
             exitButton.topAnchor.constraint(equalTo: view.topAnchor, constant: 20),
-            exitButton.rightAnchor.constraint(equalTo: view.rightAnchor, constant: -16)])
+            exitButton.leftAnchor.constraint(equalTo: view.leftAnchor, constant: 16)])
         exitButton.addTarget(self, action: #selector(exitButtonPressed(_:)), for: .touchUpInside)
         // Adding control for reload web-page on pull down
         let refreshControl = UIRefreshControl()
