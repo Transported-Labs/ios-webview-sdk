@@ -15,9 +15,10 @@ protocol BottomBarDelegate: AnyObject {
 
 class BottomBar: UIView {
 
-    private var cameraLayout: CameraLayout = .both
     private lazy var photoButton = PhotoButton()
     private lazy var videoButton = VideoButton()
+    var photoButtonLeftAnchor: NSLayoutConstraint? = nil
+    var photoButtonMiddleAnchor: NSLayoutConstraint? = nil
     
     private lazy var exitButton: UIButton = {
         let button = UIButton()
@@ -31,53 +32,78 @@ class BottomBar: UIView {
     }()
 
     weak var delegate: BottomBarDelegate?
-
-    init(cameraLayout: CameraLayout) {
+    
+    var cameraLayout: CameraLayout = .both {
+        didSet {
+            setUpUI()
+        }
+    }
+    
+    init() {
         super.init(frame: .zero)
-        self.cameraLayout = cameraLayout
-        setUpUI()
+        initUI()
     }
     
     override init(frame: CGRect) {
         super.init(frame: .zero)
-
-        setUpUI()
+        initUI()
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    private func setUpUI() {
-        backgroundColor = .black.withAlphaComponent(0.5)
-        translatesAutoresizingMaskIntoConstraints = false
-        addSubview(exitButton)
+    func setButtonsHidden(isHidden: Bool) {
         switch cameraLayout {
         case .both:
-            addSubview(photoButton)
-            addSubview(videoButton)
-            videoButton.centerXAnchor.constraint(equalTo: centerXAnchor).isActive = true
-            videoButton.centerYAnchor.constraint(equalTo: centerYAnchor).isActive = true
-            photoButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20).isActive = true
-            photoButton.centerYAnchor.constraint(equalTo: centerYAnchor).isActive = true
+            photoButton.isHidden = isHidden
+            videoButton.isHidden = isHidden
         case .photoOnly:
-            addSubview(photoButton)
-            photoButton.centerXAnchor.constraint(equalTo: centerXAnchor).isActive = true
-            photoButton.centerYAnchor.constraint(equalTo: centerYAnchor).isActive = true
+            photoButton.isHidden = isHidden
         case .videoOnly:
-            addSubview(videoButton)
-            videoButton.centerXAnchor.constraint(equalTo: centerXAnchor).isActive = true
-            videoButton.centerYAnchor.constraint(equalTo: centerYAnchor).isActive = true
+            videoButton.isHidden = isHidden
         }
-
+    }
+    
+    private func initUI() {
+        backgroundColor = .black.withAlphaComponent(0.5)
+        translatesAutoresizingMaskIntoConstraints = false
+        addSubview(photoButton)
+        addSubview(videoButton)
+        addSubview(exitButton)
+        // Non-conditional anchors
+        videoButton.centerXAnchor.constraint(equalTo: centerXAnchor).isActive = true
+        videoButton.centerYAnchor.constraint(equalTo: centerYAnchor).isActive = true
+        photoButton.centerYAnchor.constraint(equalTo: centerYAnchor).isActive = true
         exitButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -20).isActive = true
         exitButton.centerYAnchor.constraint(equalTo: centerYAnchor).isActive = true
         exitButton.widthAnchor.constraint(equalToConstant: 64).isActive = true
         exitButton.heightAnchor.constraint(equalToConstant: 64).isActive = true
-
+        // Conditional anchors
+        photoButtonLeftAnchor = photoButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20)
+        photoButtonMiddleAnchor = photoButton.centerXAnchor.constraint(equalTo: centerXAnchor)
+        // Tap handlers
         photoButton.addTarget(self, action: #selector(photoButtonPressed(_:)), for: .touchUpInside)
         videoButton.addTarget(self, action: #selector(videoButtonPressed(_:)), for: .touchUpInside)
         exitButton.addTarget(self, action: #selector(exitButtonPressed(_:)), for: .touchUpInside)
+    }
+    
+    private func setUpUI() {
+        switch cameraLayout {
+        case .both:
+            videoButton.isHidden = false
+            photoButton.isHidden = false
+            photoButtonLeftAnchor?.isActive = true
+            photoButtonMiddleAnchor?.isActive = false
+        case .photoOnly:
+            videoButton.isHidden = true
+            photoButton.isHidden = false
+            photoButtonLeftAnchor?.isActive = false
+            photoButtonMiddleAnchor?.isActive = true
+        case .videoOnly:
+            photoButton.isHidden = true
+            videoButton.isHidden = false
+        }
     }
 
     @objc private func photoButtonPressed(_ sender: UIButton?) {

@@ -253,6 +253,21 @@ extension CameraLink {
         self.videoOutput?.stopRecording()
     }
     
+    func turnTorchOff() {
+        if let device = self.backCamera {
+            do {
+                try device.lockForConfiguration()
+                let mode: AVCaptureDevice.TorchMode = .off
+                if device.isTorchModeSupported(mode) {
+                    device.torchMode = mode
+                }
+                device.unlockForConfiguration()
+            } catch {
+                print("Torch could not be used, error: \(error)")
+            }
+        }
+    }
+    
     func stopSession() {
         guard let session = self.captureSession else {
             return

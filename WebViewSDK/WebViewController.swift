@@ -17,6 +17,7 @@ public enum InvalidUrlError: Error {
 }
 
 typealias ParamsArray = [Any?]
+public typealias ProgressHandler = (_ progress: Int) -> ()
 
 public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
 
@@ -47,6 +48,8 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     
     var curRequestId: Int? = nil
     var hapticEngine: CHHapticEngine?
+    var isTorchLocked: Bool = false
+    private var progressHandler: ProgressHandler?
     
     lazy var webView: WKWebView = {
         let webConfiguration = WKWebViewConfiguration()
@@ -58,6 +61,12 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         wv.navigationDelegate = self
         wv.translatesAutoresizingMaskIntoConstraints = false
         return wv
+    }()
+
+    private lazy var cameraController: CameraController = {
+        let camController = CameraController(webViewController: self)
+        camController.modalPresentationStyle = .overFullScreen
+        return camController
     }()
     
     private lazy var exitButton: UIButton = {
@@ -119,6 +128,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     
     public override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        isTorchLocked = false
         // Keep alive during the show
         UIApplication.shared.isIdleTimerDisabled = true
     }
@@ -129,9 +139,22 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         UIApplication.shared.isIdleTimerDisabled = false
     }
     
+    public override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
+        if keyPath == "estimatedProgress" {
+            let progress = Int(webView.estimatedProgress * 100.0)
+            if let progressHandler = self.progressHandler {
+                progressHandler(progress)
+            }
+        }
+    }
+    
     ///  Navigates to the url in embedded WKWebView-object
-    public func navigateTo(url: URL) throws {
+    public func navigateTo(url: URL, progressHandler: ProgressHandler? = nil) throws {
         if UIApplication.shared.canOpenURL(url) {
+            if progressHandler != nil {
+                self.progressHandler = progressHandler
+                webView.addObserver(self, forKeyPath: #keyPath(WKWebView.estimatedProgress), options: .new, context: nil)
+            }
             webView.load(URLRequest(url: url))
         } else {
             throw InvalidUrlError.runtimeError("Invalid URL: \(url.absoluteString)")
@@ -140,7 +163,8 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     
     @objc private func exitButtonPressed(_ sender: UIButton?) {
         dismiss(animated: true, completion: nil)
-        turnTorch(isOn: false)
+        isTorchLocked = true
+        cameraController.turnTorchOff()
         // Clear webView
         webView.load(URLRequest(url: URL(string:"about:blank")!))
     }
@@ -194,6 +218,10 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     }
     
     private func turnTorchToLevel(level: Float) {
+        guard !isTorchLocked else {
+            sendToJavaScript(result: nil)
+            return
+        }
         if let device = torchDevice {
             do {
                 let intenseLevel = adjustedIntenseLevel(level)
@@ -208,6 +236,10 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     }
     
     private func turnTorch(isOn: Bool) {
+        guard !isTorchLocked else {
+            sendToJavaScript(result: nil)
+            return
+        }
         if let device = torchDevice {
             do {
                 try device.lockForConfiguration()
@@ -261,23 +293,23 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
                         while ((currentRampUpTime < rampUpMs) && isSparkling) {
                             let upIntensity = Float(currentRampUpTime) / Float(rampUpMs) * intenseLevel
                             debugMessageToJS("rampUp: \(upIntensity)")
-                            if upIntensity > 0.0 {
+                            if (upIntensity > 0.0) && !isTorchLocked {
                                 try device.setTorchModeOn(level: upIntensity)
                             }
                             sleepMs(blinkDelayMs)
                             currentRampUpTime = nowMs() - rampUpStart
                         }
-                        if isSparkling {
+                        if isSparkling && !isTorchLocked {
                             debugMessageToJS("sustain: \(intenseLevel)")
                             try device.setTorchModeOn(level: intenseLevel)
-                            sleepMs(sustainMs)
                         }
+                        sleepMs(sustainMs)
                         let rampDownStart = nowMs()
                         var currentRampDownTime = 0
                         while ((currentRampDownTime < rampDownMs) && isSparkling){
                             let downIntensity = (1.0 - Float(currentRampDownTime) / Float(rampDownMs)) * intenseLevel
                             debugMessageToJS("rampDownn: \(downIntensity)")
-                            if downIntensity > 0.0 {
+                            if (downIntensity > 0.0) && !isTorchLocked {
                                 try device.setTorchModeOn(level: downIntensity)
                             }
                             sleepMs(blinkDelayMs)
@@ -321,7 +353,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
                         while (isSparkling) {
                             isOn = !isOn
                             let mode: AVCaptureDevice.TorchMode = isOn ? .on : .off
-                            if device.isTorchModeSupported(mode) {
+                            if device.isTorchModeSupported(mode) && !self.isTorchLocked  {
                                 device.torchMode = mode
                             }
                             usleep(blinkDelay)
@@ -468,9 +500,8 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     
     private func openCamera(cameraLayout: CameraLayout) {
         initAudioSession()
-        let cameraController = CameraController(cameraLayout: cameraLayout)
-        cameraController.modalPresentationStyle = .overFullScreen
-        self.present(cameraController, animated:true, completion:nil)
+        cameraController.initBottomBar(cameraLayout: cameraLayout)
+        present(cameraController, animated:true, completion:nil)
         sendToJavaScript(result: nil)
     }
 }

@@ -23,19 +23,77 @@ class CameraController: UIViewController {
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
     }()
+    
+    private lazy var waitingSpinner: UIActivityIndicatorView = {
+        let spinner = UIActivityIndicatorView(activityIndicatorStyle: UIActivityIndicatorViewStyle.large)
+        spinner.color = .white
+        spinner.translatesAutoresizingMaskIntoConstraints = false
+        spinner.startAnimating()
+        return spinner
+    }()
+    
+    private var webViewController: WebViewController!
     private var bottomBar: BottomBar!
     private lazy var cameraLink = CameraLink()
     private var isVideoRecording: Bool = false
 
-    init(cameraLayout: CameraLayout) {
+    init(webViewController: WebViewController) {
         super.init(nibName: nil, bundle: nil)
-        bottomBar = BottomBar(cameraLayout: cameraLayout)
+        self.webViewController = webViewController
+        self.bottomBar = BottomBar()
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
+    
+    deinit {
+        cameraLink.stopSession()
+    }
 
+    private func prepareCameraLink() {
+        bottomBar.setButtonsHidden(isHidden: true)
+        waitingSpinner.isHidden = false
+        webViewController.isTorchLocked = true
+        cameraLink.turnTorchOff()
+        
+        cameraLink.setup { [self] (error) in
+            if error != nil {
+                showToast(message: "Camera cannot be prepared, try again later")
+            } else {
+                do {
+                    try cameraLink.displayPreview(previewArea) { [self] in
+                        bottomBar.setButtonsHidden(isHidden: false)
+                    }
+                } catch {
+                    showToast(message: "Preview cannot be prepared, try again later")
+                }
+            }
+            webViewController.isTorchLocked = false
+            waitingSpinner.isHidden = true
+        }
+    }
+    
+    func turnTorchOff() {
+        cameraLink.turnTorchOff()
+    }
+    
+    func initBottomBar(cameraLayout: CameraLayout) {
+        bottomBar.cameraLayout = cameraLayout
+    }
+    
+    func checkSessionIsStarted() {
+        var needRestartSession = false
+        if let captureSession = cameraLink.captureSession {
+            needRestartSession = !captureSession.isRunning
+        } else {
+            needRestartSession = true
+        }
+        if needRestartSession {
+            prepareCameraLink()
+        }
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
@@ -43,15 +101,7 @@ class CameraController: UIViewController {
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        bottomBar.isHidden = true
-        cameraLink.setup { (error) in
-            if error != nil {
-                print(error!.localizedDescription)
-            }
-            try? self.cameraLink.displayPreview(self.previewArea) {
-                self.bottomBar.isHidden = false
-            }
-        }
+        checkSessionIsStarted()
     }
 
     private func setupUI() {
@@ -67,11 +117,15 @@ class CameraController: UIViewController {
         bottomBar.leadingAnchor.constraint(equalTo: view.leadingAnchor).isActive = true
         bottomBar.trailingAnchor.constraint(equalTo: view.trailingAnchor).isActive = true
         bottomBar.heightAnchor.constraint(equalTo: view.heightAnchor, multiplier: 0.16).isActive = true
+        
+        view.addSubview(waitingSpinner)
+        waitingSpinner.centerXAnchor.constraint(equalTo: view.centerXAnchor).isActive = true
+        waitingSpinner.centerYAnchor.constraint(equalTo: view.centerYAnchor).isActive = true
     }
     
     @objc func image(_ image: UIImage, didFinishSavingWithError error: NSError?, contextInfo: UnsafeRawPointer) {
         if let error = error {
-            showToast(message: "Could not save photo! \n\(error)")
+            showToast(message: "Could not save photo, try again later")
         } else {
             showToast(message: "Photo has been saved")
         }
@@ -79,7 +133,7 @@ class CameraController: UIViewController {
     
     @objc func video(_ video: String, didFinishSavingWithError error: NSError?, contextInfo: UnsafeRawPointer) {
         if let error = error {
-            showToast(message: "Could not save video \n\(error)")
+            showToast(message: "Could not save video, try again later")
         } else {
             showToast(message: "Video has been saved")
         }
@@ -117,7 +171,7 @@ extension CameraController: BottomBarDelegate {
     }
     
     func exitButtonPressed() {
-        cameraLink.stopSession()
+        // Don't stop capture session here
         dismiss(animated: true, completion: nil)
     }
 }
