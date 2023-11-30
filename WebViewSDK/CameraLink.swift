@@ -49,14 +49,36 @@ class CameraLink: NSObject {
     var videoOutput: AVCaptureMovieFileOutput?
     var audioInput: AVCaptureDeviceInput?
     var outputType: OutputType?
+    private let sessionQueue = DispatchQueue(label: "com.cueaudio.live.sessionQueue")
+    private var isSessionRunning = false
 }
 
 extension CameraLink {
+
+    @objc func sessionRuntimeErrorOccurred(notification: Notification) {
+        guard let error = notification.userInfo?[AVCaptureSessionErrorKey] as? AVError else {
+          return
+        }
+        print("Capture session runtime error: \(error)")
+        // If media services were reset, and the last start succeeded, restart the session.
+        if (error.code == .mediaServicesWereReset) || (error.code == .unknown) {
+            sessionQueue.async {
+                if self.isSessionRunning {
+                    self.startSession()
+                }
+            }
+        }
+    }
     
     func setup(handler: @escaping (Error?)-> Void ) {
         
         func createCaptureSession() {
             self.captureSession = AVCaptureSession()
+            NotificationCenter.default.addObserver(self,
+                                                   selector: #selector(sessionRuntimeErrorOccurred(notification:)),
+                                                   name: .AVCaptureSessionRuntimeError,
+                                                   object: self.captureSession)
+            
         }
         
         func configureCaptureDevices() throws {
@@ -131,7 +153,6 @@ extension CameraLink {
                 captureSession.addOutput(photoOutput)
             }
             self.outputType = .photoOutputType
-            captureSession.startRunning()
         }
         
         func configureVideoOutput() throws {
@@ -150,13 +171,14 @@ extension CameraLink {
             
         }
         
-        DispatchQueue(label: "setup").async {
+        sessionQueue.async {
             do {
                 createCaptureSession()
                 try configureCaptureDevices()
                 try configureDeviceInputs()
                 try configurePhotoOutput()
                 try configureVideoOutput()
+                self.startSession()
             } catch {
                 DispatchQueue.main.async {
                     handler(error)
@@ -170,15 +192,24 @@ extension CameraLink {
         }
     }
     
+    private func startSession() {
+        if let session = self.captureSession {
+            session.startRunning()
+            isSessionRunning = session.isRunning
+        }
+    }
+    
     func displayPreview(_ view: UIView, completion: @escaping ()-> Void) throws {
         guard let captureSession = self.captureSession, captureSession.isRunning else { throw CameraError.sessionIsMissing }
         
         self.previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
-        self.previewLayer?.videoGravity = AVLayerVideoGravity.resizeAspectFill
-        self.previewLayer?.connection?.videoOrientation = .portrait
-        
-        view.layer.insertSublayer(self.previewLayer!, at: 0)
-        self.previewLayer?.frame = CGRect(x: 0, y: 0, width: view.frame.width , height: view.frame.height)
+        if let previewLayer = self.previewLayer {
+            previewLayer.videoGravity = AVLayerVideoGravity.resizeAspectFill
+            previewLayer.connection?.videoOrientation = .portrait
+            view.layer.sublayers?.forEach { $0.removeFromSuperlayer() }
+            view.layer.insertSublayer(previewLayer, at: 0)
+            previewLayer.frame = CGRect(x: 0, y: 0, width: view.frame.width , height: view.frame.height)
+        }
         completion()
     }
     
@@ -222,27 +253,37 @@ extension CameraLink {
     }
     
     func captureImage(completion: @escaping (UIImage?, Error?) -> Void) {
-        guard let captureSession = self.captureSession, captureSession.isRunning else {
+        guard let captureSession = self.captureSession else {
             completion(nil, CameraError.sessionIsMissing)
             return
         }
-        let settings = AVCapturePhotoSettings()
-        settings.flashMode = self.flashMode
-        self.photoOutput?.capturePhoto(with: settings, delegate: self)
-        self.photoCaptureCompletionBlock = completion
+        sessionQueue.async { [self] in
+            if (!captureSession.isRunning) {
+                startSession()
+            }
+            let settings = AVCapturePhotoSettings()
+            settings.flashMode = self.flashMode
+            self.photoOutput?.capturePhoto(with: settings, delegate: self)
+            self.photoCaptureCompletionBlock = completion
+        }
     }
     
     func recordVideo(completion: @escaping (URL?, Error?)-> Void) {
-        guard let captureSession = self.captureSession, captureSession.isRunning else {
+        guard let captureSession = self.captureSession else {
             completion(nil, CameraError.sessionIsMissing)
             return
         }
         
-        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
-        let fileUrl = paths[0].appendingPathComponent("output.mp4")
-        try? FileManager.default.removeItem(at: fileUrl)
-        videoOutput?.startRecording(to: fileUrl, recordingDelegate: self)
-        self.videoRecordCompletionBlock = completion
+        sessionQueue.async { [self] in
+            if (!captureSession.isRunning) {
+                startSession()
+            }
+            let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+            let fileUrl = paths[0].appendingPathComponent("output.mp4")
+            try? FileManager.default.removeItem(at: fileUrl)
+            videoOutput?.startRecording(to: fileUrl, recordingDelegate: self)
+            self.videoRecordCompletionBlock = completion
+        }
     }
     
     func stopRecording(completion: @escaping (Error?)->Void) {
@@ -273,15 +314,17 @@ extension CameraLink {
             return
         }
         if session.isRunning {
-            DispatchQueue.global().async { [self] in
+            sessionQueue.async { [self] in
+                NotificationCenter.default.removeObserver(self, name: NSNotification.Name.AVCaptureSessionRuntimeError, object: session)
                 previewLayer?.removeFromSuperlayer()
                 previewLayer = nil
-                captureSession!.stopRunning()
-                for input in captureSession!.inputs {
-                    captureSession!.removeInput(input)
+                session.stopRunning()
+                isSessionRunning = session.isRunning
+                for input in session.inputs {
+                    session.removeInput(input)
                 }
-                for output in captureSession!.outputs {
-                    captureSession!.removeOutput(output)
+                for output in session.outputs {
+                    session.removeOutput(output)
                 }
             }
         }
