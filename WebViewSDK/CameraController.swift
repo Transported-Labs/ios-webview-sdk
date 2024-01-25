@@ -25,7 +25,12 @@ class CameraController: UIViewController {
     }()
     
     private lazy var waitingSpinner: UIActivityIndicatorView = {
+        #if swift(>=4.2)
+        let spinner = UIActivityIndicatorView(style: .large)
+        #else
         let spinner = UIActivityIndicatorView(activityIndicatorStyle: UIActivityIndicatorViewStyle.large)
+        #endif
+        
         spinner.color = .white
         spinner.translatesAutoresizingMaskIntoConstraints = false
         spinner.startAnimating()
