@@ -412,7 +412,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         let audioSession = AVAudioSession.sharedInstance()
         do {
             #if swift(>=5.0)
-            try audioSession.setCategory(.playAndRecord, with: .mixWithOthers)
+            try audioSession.setCategory(.playAndRecord, options: .mixWithOthers)
             #else
             try audioSession.setCategory(AVAudioSessionCategoryPlayAndRecord, with: AVAudioSession.CategoryOptions.mixWithOthers)
             #endif
