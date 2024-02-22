@@ -49,6 +49,14 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
     var curRequestId: Int? = nil
     var hapticEngine: CHHapticEngine?
     var isTorchLocked: Bool = false
+    public var isExitButtonHidden: Bool {
+        get {
+            return exitButton.isHidden
+        }
+        set {
+            exitButton.isHidden = newValue
+        }
+    }
     private var progressHandler: ProgressHandler?
     
     lazy var webView: WKWebView = {
