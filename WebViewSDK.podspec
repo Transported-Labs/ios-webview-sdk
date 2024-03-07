@@ -16,7 +16,7 @@ Pod::Spec.new do |spec|
   #
 
   spec.name         = "WebViewSDK"
-  spec.version      = "0.0.7"
+  spec.version      = "0.0.8"
   spec.summary      = "WebViewSDK is an assistant library used by Web-version of CUE Live 2.0 Lightshows"
 
   # This description is used to generate tags and improve search results.
@@ -91,6 +91,7 @@ Pod::Spec.new do |spec|
   #
 
   spec.source_files  = "**/*.{h,m,swift}"
+  spec.exclude_files = "Package.swift"
   #  spec.exclude_files = "Classes/Exclude"
 
   # spec.public_header_files = "Classes/**/*.h"
