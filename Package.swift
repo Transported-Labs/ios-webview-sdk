@@ -8,12 +8,12 @@ let package = Package(
     ],
     products: [
         .library(
-            name: "WebViewSDK",
-            targets: ["WebViewSDK"]),
+            name: "CueLightShow",
+            targets: ["CueLightShow"]),
     ],
     targets: [
         .target(
-            name: "WebViewSDK",
-            path: "WebViewSDK"),
+            name: "CueLightShow",
+            path: "CueLightShow"),
     ]
 )
