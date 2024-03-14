@@ -1,7 +1,7 @@
 
 //
 //  WebViewController.swift
-//  WebViewSDK
+//  CueLightShow
 //
 //  Created by Alexander Mokrushin on 24.03.2023.
 //
@@ -153,6 +153,9 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
             if let progressHandler = self.progressHandler {
                 progressHandler(progress)
             }
+            if progress >= 100 {
+                WKWebView.printAllObjects()
+            }
         }
     }
     
@@ -186,6 +189,16 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKUIDele
         let alertController = UIAlertController(title: message,message: nil,preferredStyle: .alert)
         alertController.addAction(UIAlertAction(title: "OK", style: .cancel) {_ in completionHandler()})
         self.present(alertController, animated: true, completion: nil)
+    }
+    
+    public func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        // navigation types: linkActivated, formSubmitted,
+        //                   backForward, reload, formResubmitted, other
+        if let url = navigationAction.request.url {
+            print("Load \(url.absoluteString)")
+        }
+        decisionHandler(.allow)
+
     }
     
     @available(iOS 15.0, *)
@@ -662,6 +675,18 @@ extension WebViewController: WKScriptMessageHandler{
             }
         } else {
             print("curRequestId is nil")
+        }
+    }
+}
+
+extension WKWebView {
+    class func printAllObjects() {
+        guard #available(iOS 9.0, *) else {return}
+
+        WKWebsiteDataStore.default().fetchDataRecords(ofTypes: [WKWebsiteDataTypeMemoryCache, WKWebsiteDataTypeDiskCache, WKWebsiteDataTypeOfflineWebApplicationCache]) { records in
+            records.forEach { record in
+                print("Cache record:", record)
+            }
         }
     }
 }

@@ -1,6 +1,6 @@
 //
 //  VideoButton.swift
-//  WebViewSDK
+//  CueLightShow
 //
 //  Created by Alexander Mokrushin on 23.10.2023.
 //

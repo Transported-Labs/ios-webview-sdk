@@ -1,5 +1,5 @@
 #
-#  Be sure to run `pod spec lint WebViewSDK.podspec' to ensure this is a
+#  Be sure to run `pod spec lint CueLightShow.podspec' to ensure this is a
 #  valid spec and to remove all comments including this before submitting the spec.
 #
 #  To learn more about Podspec attributes see https://guides.cocoapods.org/syntax/podspec.html
@@ -15,9 +15,9 @@ Pod::Spec.new do |spec|
   #  summary should be tweet-length, and the description more in depth.
   #
 
-  spec.name         = "WebViewSDK"
-  spec.version      = "0.0.8"
-  spec.summary      = "WebViewSDK is an assistant library used by Web-version of CUE Live 2.0 Lightshows"
+  spec.name         = "CueLightShow"
+  spec.version      = "0.0.9"
+  spec.summary      = "CueLightShow is an assistant library used by Web-version of CUE Live 2.0 Lightshows"
 
   # This description is used to generate tags and improve search results.
   #   * Think: What does it do? Why did you write it? What is the focus?
@@ -79,7 +79,7 @@ Pod::Spec.new do |spec|
   #
 
   spec.source       = { :git => "https://github.com/Transported-Labs/ios-webview-sdk.git", :tag => "#{spec.version}" }
-  #  spec.source       = { :git => "http://EXAMPLE/WebViewSDK.git", :tag => "#{spec.version}" }
+  #  spec.source       = { :git => "http://EXAMPLE/CueLightShow.git", :tag => "#{spec.version}" }
 
 
   # ――― Source Code ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
@@ -90,7 +90,7 @@ Pod::Spec.new do |spec|
   #  Not including the public_header_files will make all headers public.
   #
 
-  spec.source_files  = "**/*.{h,m,swift}"
+  spec.source_files  = "CueLightShow/**/*.{h,m,swift}"
   spec.exclude_files = "Package.swift"
   #  spec.exclude_files = "Classes/Exclude"
 

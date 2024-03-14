@@ -1,12 +1,12 @@
 //
 //  ViewController.swift
-//  WebViewDemo
+//  SDKConsumer
 //
 //  Created by Alexander Mokrushin on 15.02.2024.
 //
 
 import UIKit
-import WebViewSDK
+import CueLightShow
 
 class ViewController: UIViewController {
 
@@ -43,8 +43,7 @@ class ViewController: UIViewController {
             showToast("No 'Version' attribute found")
             return
         }
-        let urlVersion = appVersion.replacingOccurrences(of: ".", with: "_")
-        let url = URL(string: "https://dev-dxp.azurewebsites.net/api/light-show/get-version-url?version=\(urlVersion)")!
+        let url = URL(string: "https://dev-dxp.azurewebsites.net/api/light-show/get-version-url?version=\(appVersion)")!
         let task = session.dataTask(with: url) { data, response, error in
             if error != nil {
                 self.showToast("Client error: \(String(describing: error?.localizedDescription))")

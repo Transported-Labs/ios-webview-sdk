@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		81F5A9542A0124E00059B694 /* WebViewSDK.h in Headers */ = {isa = PBXBuildFile; fileRef = 81F5A9512A0124E00059B694 /* WebViewSDK.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		81F5A9542A0124E00059B694 /* CueLightShow.h in Headers */ = {isa = PBXBuildFile; fileRef = 81F5A9512A0124E00059B694 /* CueLightShow.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		81F5A95F2A0125D40059B694 /* WebViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81F5A95C2A0125D30059B694 /* WebViewController.swift */; };
 		81F7B6132AE6D4F200719C59 /* PhotoButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81F7B60E2AE6D4F100719C59 /* PhotoButton.swift */; };
 		81F7B6142AE6D4F200719C59 /* BottomBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81F7B60F2AE6D4F100719C59 /* BottomBar.swift */; };
@@ -17,8 +17,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		81F5A94E2A0124E00059B694 /* WebViewSDK.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = WebViewSDK.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		81F5A9512A0124E00059B694 /* WebViewSDK.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WebViewSDK.h; sourceTree = "<group>"; };
+		81F5A94E2A0124E00059B694 /* CueLightShow.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = CueLightShow.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		81F5A9512A0124E00059B694 /* CueLightShow.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CueLightShow.h; sourceTree = "<group>"; };
 		81F5A95C2A0125D30059B694 /* WebViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WebViewController.swift; sourceTree = "<group>"; };
 		81F7B60E2AE6D4F100719C59 /* PhotoButton.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PhotoButton.swift; sourceTree = "<group>"; };
 		81F7B60F2AE6D4F100719C59 /* BottomBar.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BottomBar.swift; sourceTree = "<group>"; };
@@ -41,7 +41,7 @@
 		81F5A9442A0124E00059B694 = {
 			isa = PBXGroup;
 			children = (
-				81F5A9502A0124E00059B694 /* WebViewSDK */,
+				81F5A9502A0124E00059B694 /* CueLightShow */,
 				81F5A94F2A0124E00059B694 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -49,21 +49,21 @@
 		81F5A94F2A0124E00059B694 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				81F5A94E2A0124E00059B694 /* WebViewSDK.framework */,
+				81F5A94E2A0124E00059B694 /* CueLightShow.framework */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		81F5A9502A0124E00059B694 /* WebViewSDK */ = {
+		81F5A9502A0124E00059B694 /* CueLightShow */ = {
 			isa = PBXGroup;
 			children = (
-				81F5A9512A0124E00059B694 /* WebViewSDK.h */,
+				81F5A9512A0124E00059B694 /* CueLightShow.h */,
 				81F5A95C2A0125D30059B694 /* WebViewController.swift */,
 				81F7B6162AE6D76500719C59 /* CameraController.swift */,
 				81F7B61A2AE7FADD00719C59 /* CameraLink.swift */,
 				81F7B60B2AE6D4F100719C59 /* CameraUI */,
 			);
-			path = WebViewSDK;
+			path = CueLightShow;
 			sourceTree = "<group>";
 		};
 		81F7B60B2AE6D4F100719C59 /* CameraUI */ = {
@@ -83,16 +83,16 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				81F5A9542A0124E00059B694 /* WebViewSDK.h in Headers */,
+				81F5A9542A0124E00059B694 /* CueLightShow.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
-		81F5A94D2A0124E00059B694 /* WebViewSDK */ = {
+		81F5A94D2A0124E00059B694 /* CueLightShow */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 81F5A9572A0124E00059B694 /* Build configuration list for PBXNativeTarget "WebViewSDK" */;
+			buildConfigurationList = 81F5A9572A0124E00059B694 /* Build configuration list for PBXNativeTarget "CueLightShow" */;
 			buildPhases = (
 				81F5A9492A0124E00059B694 /* Headers */,
 				81F5A94A2A0124E00059B694 /* Sources */,
@@ -103,9 +103,9 @@
 			);
 			dependencies = (
 			);
-			name = WebViewSDK;
+			name = CueLightShow;
 			productName = WebViewSDK;
-			productReference = 81F5A94E2A0124E00059B694 /* WebViewSDK.framework */;
+			productReference = 81F5A94E2A0124E00059B694 /* CueLightShow.framework */;
 			productType = "com.apple.product-type.framework";
 		};
 /* End PBXNativeTarget section */
@@ -122,7 +122,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 81F5A9482A0124E00059B694 /* Build configuration list for PBXProject "WebViewSDK" */;
+			buildConfigurationList = 81F5A9482A0124E00059B694 /* Build configuration list for PBXProject "CueLightShow" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -135,7 +135,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				81F5A94D2A0124E00059B694 /* WebViewSDK */,
+				81F5A94D2A0124E00059B694 /* CueLightShow */,
 			);
 		};
 /* End PBXProject section */
@@ -219,7 +219,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -278,7 +278,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
@@ -315,7 +315,7 @@
 				MARKETING_VERSION = 1.0;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++20";
-				PRODUCT_BUNDLE_IDENTIFIER = com.cueaudio.WebViewSDK;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cueaudio.CueLightShow;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -348,7 +348,7 @@
 				MARKETING_VERSION = 1.0;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++20";
-				PRODUCT_BUNDLE_IDENTIFIER = com.cueaudio.WebViewSDK;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cueaudio.CueLightShow;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -360,7 +360,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		81F5A9482A0124E00059B694 /* Build configuration list for PBXProject "WebViewSDK" */ = {
+		81F5A9482A0124E00059B694 /* Build configuration list for PBXProject "CueLightShow" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				81F5A9552A0124E00059B694 /* Debug */,
@@ -369,7 +369,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		81F5A9572A0124E00059B694 /* Build configuration list for PBXNativeTarget "WebViewSDK" */ = {
+		81F5A9572A0124E00059B694 /* Build configuration list for PBXNativeTarget "CueLightShow" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				81F5A9582A0124E00059B694 /* Debug */,

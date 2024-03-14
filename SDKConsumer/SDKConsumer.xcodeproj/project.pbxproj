@@ -7,34 +7,34 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		529E66942BA324AC006B2B31 /* CueLightShow.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 529E668F2BA321E6006B2B31 /* CueLightShow.framework */; };
+		529E66952BA324AC006B2B31 /* CueLightShow.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 529E668F2BA321E6006B2B31 /* CueLightShow.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		52E0F4D72B837FA8006E8826 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52E0F4D62B837FA8006E8826 /* AppDelegate.swift */; };
 		52E0F4D92B837FA8006E8826 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52E0F4D82B837FA8006E8826 /* SceneDelegate.swift */; };
 		52E0F4DB2B837FA8006E8826 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52E0F4DA2B837FA8006E8826 /* ViewController.swift */; };
 		52E0F4DE2B837FA9006E8826 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 52E0F4DC2B837FA9006E8826 /* Main.storyboard */; };
 		52E0F4E02B837FAE006E8826 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 52E0F4DF2B837FAE006E8826 /* Assets.xcassets */; };
 		52E0F4E32B837FAE006E8826 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 52E0F4E12B837FAE006E8826 /* LaunchScreen.storyboard */; };
-		52E0F4F42B838324006E8826 /* WebViewSDK.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 52E0F4EF2B838024006E8826 /* WebViewSDK.framework */; };
-		52E0F4F52B838324006E8826 /* WebViewSDK.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 52E0F4EF2B838024006E8826 /* WebViewSDK.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		52E0F4EE2B838024006E8826 /* PBXContainerItemProxy */ = {
+		529E668E2BA321E6006B2B31 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
-			containerPortal = 52E0F4EA2B838024006E8826 /* WebViewSDK.xcodeproj */;
+			containerPortal = 529E668A2BA321E6006B2B31 /* CueLightShow.xcodeproj */;
 			proxyType = 2;
 			remoteGlobalIDString = 81F5A94E2A0124E00059B694;
-			remoteInfo = WebViewSDK;
+			remoteInfo = CueLightShow;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		52E0F4F62B838325006E8826 /* Embed Frameworks */ = {
+		529E66962BA324AC006B2B31 /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				52E0F4F52B838324006E8826 /* WebViewSDK.framework in Embed Frameworks */,
+				529E66952BA324AC006B2B31 /* CueLightShow.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -42,6 +42,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		529E668A2BA321E6006B2B31 /* CueLightShow.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = CueLightShow.xcodeproj; path = ../CueLightShow.xcodeproj; sourceTree = "<group>"; };
 		52E0F4D32B837FA8006E8826 /* SDKConsumer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SDKConsumer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		52E0F4D62B837FA8006E8826 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		52E0F4D82B837FA8006E8826 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -50,7 +51,6 @@
 		52E0F4DF2B837FAE006E8826 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		52E0F4E22B837FAE006E8826 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		52E0F4E42B837FAE006E8826 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		52E0F4EA2B838024006E8826 /* WebViewSDK.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = WebViewSDK.xcodeproj; path = ../WebViewSDK.xcodeproj; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -58,17 +58,25 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				52E0F4F42B838324006E8826 /* WebViewSDK.framework in Frameworks */,
+				529E66942BA324AC006B2B31 /* CueLightShow.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		529E668B2BA321E6006B2B31 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				529E668F2BA321E6006B2B31 /* CueLightShow.framework */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 		52E0F4CA2B837FA8006E8826 = {
 			isa = PBXGroup;
 			children = (
-				52E0F4EA2B838024006E8826 /* WebViewSDK.xcodeproj */,
+				529E668A2BA321E6006B2B31 /* CueLightShow.xcodeproj */,
 				52E0F4D52B837FA8006E8826 /* SDKConsumer */,
 				52E0F4D42B837FA8006E8826 /* Products */,
 				52E0F4F02B838182006E8826 /* Frameworks */,
@@ -97,14 +105,6 @@
 			path = SDKConsumer;
 			sourceTree = "<group>";
 		};
-		52E0F4EB2B838024006E8826 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				52E0F4EF2B838024006E8826 /* WebViewSDK.framework */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
 		52E0F4F02B838182006E8826 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -122,7 +122,7 @@
 				52E0F4CF2B837FA8006E8826 /* Sources */,
 				52E0F4D02B837FA8006E8826 /* Frameworks */,
 				52E0F4D12B837FA8006E8826 /* Resources */,
-				52E0F4F62B838325006E8826 /* Embed Frameworks */,
+				529E66962BA324AC006B2B31 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -161,8 +161,8 @@
 			projectDirPath = "";
 			projectReferences = (
 				{
-					ProductGroup = 52E0F4EB2B838024006E8826 /* Products */;
-					ProjectRef = 52E0F4EA2B838024006E8826 /* WebViewSDK.xcodeproj */;
+					ProductGroup = 529E668B2BA321E6006B2B31 /* Products */;
+					ProjectRef = 529E668A2BA321E6006B2B31 /* CueLightShow.xcodeproj */;
 				},
 			);
 			projectRoot = "";
@@ -173,11 +173,11 @@
 /* End PBXProject section */
 
 /* Begin PBXReferenceProxy section */
-		52E0F4EF2B838024006E8826 /* WebViewSDK.framework */ = {
+		529E668F2BA321E6006B2B31 /* CueLightShow.framework */ = {
 			isa = PBXReferenceProxy;
 			fileType = wrapper.framework;
-			path = WebViewSDK.framework;
-			remoteRef = 52E0F4EE2B838024006E8826 /* PBXContainerItemProxy */;
+			path = CueLightShow.framework;
+			remoteRef = 529E668E2BA321E6006B2B31 /* PBXContainerItemProxy */;
 			sourceTree = BUILT_PRODUCTS_DIR;
 		};
 /* End PBXReferenceProxy section */
