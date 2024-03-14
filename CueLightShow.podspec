@@ -16,8 +16,9 @@ Pod::Spec.new do |spec|
   #
 
   spec.name         = "CueLightShow"
-  spec.version      = "0.0.9"
+  spec.version      = "0.0.10"
   spec.summary      = "CueLightShow is an assistant library used by Web-version of CUE Live 2.0 Lightshows"
+  spec.readme       = "https://github.com/Transported-Labs/ios-webview-sdk/blob/main/README.md"
 
   # This description is used to generate tags and improve search results.
   #   * Think: What does it do? Why did you write it? What is the focus?
