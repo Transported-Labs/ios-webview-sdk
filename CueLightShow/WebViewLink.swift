@@ -17,7 +17,7 @@ public enum InvalidUrlError: Error {
 
 typealias ParamsArray = [Any?]
 
-class WebViewLink: NSObject {
+public class WebViewLink: NSObject {
     let cueSDKName = "cueSDK"
     let torchServiceName = "torch"
     let vibrationServiceName = "vibration"
@@ -45,10 +45,10 @@ class WebViewLink: NSObject {
     
     var curRequestId: Int? = nil
     var hapticEngine: CHHapticEngine?
-    var isTorchLocked: Bool = false
     
     var viewController: UIViewController!
     var webView: WKWebView!
+    public var isTorchLocked: Bool = false
     
     lazy var cameraController: CameraController = {
         let camController = CameraController(webViewLink: self)
@@ -69,7 +69,7 @@ class WebViewLink: NSObject {
         return nil
     }()
     
-    init(viewController: UIViewController, webView: WKWebView) {
+    public init(viewController: UIViewController, webView: WKWebView) {
         super.init()
         self.viewController = viewController
         self.webView = webView

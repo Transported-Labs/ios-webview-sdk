@@ -182,7 +182,7 @@ extension CameraController: BottomBarDelegate {
 }
 
 extension UIViewController {
-    func showToast(message : String) {
+    public func showToast(message : String) {
         let alert = UIAlertController(title: nil, message: message, preferredStyle: .alert)
         alert.view.backgroundColor = .black
         alert.view.alpha = 0.5
