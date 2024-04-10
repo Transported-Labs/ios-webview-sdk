@@ -13,7 +13,7 @@ public typealias ProgressHandler = (_ progress: Int) -> ()
 
 public class WebViewController: UIViewController {
 
-    private var webViewLink: WebViewLink!
+    private var cueSDK: CueSDK!
     private var progressHandler: ProgressHandler?
 
     public var isExitButtonHidden: Bool {
@@ -72,12 +72,12 @@ public class WebViewController: UIViewController {
         let refreshControl = UIRefreshControl()
         refreshControl.addTarget(self, action: #selector(reloadWebView(_:)), for: .valueChanged)
         webView.scrollView.addSubview(refreshControl)
-        webViewLink = WebViewLink(viewController: self, webView: self.webView)
+        cueSDK = CueSDK(viewController: self, webView: self.webView)
     }
     
     public override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        webViewLink.isTorchLocked = false
+        cueSDK.isTorchLocked = false
         // Keep alive during the show
         UIApplication.shared.isIdleTimerDisabled = true
     }
@@ -112,8 +112,8 @@ public class WebViewController: UIViewController {
     
     @objc private func exitButtonPressed(_ sender: UIButton?) {
         dismiss(animated: true, completion: nil)
-        webViewLink.isTorchLocked = true
-        webViewLink.cameraController.turnTorchOff()
+        cueSDK.isTorchLocked = true
+        cueSDK.cameraController.turnTorchOff()
         // Clear webView
         webView.load(URLRequest(url: URL(string:"about:blank")!))
     }

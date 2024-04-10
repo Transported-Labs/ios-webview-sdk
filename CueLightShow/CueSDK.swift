@@ -1,5 +1,5 @@
 //
-//  WebViewLink.swift
+//  CueSDK.swift
 //  CueLightShow
 //
 //  Created by Alexander Mokrushin on 05.04.2024.
@@ -17,7 +17,7 @@ public enum InvalidUrlError: Error {
 
 typealias ParamsArray = [Any?]
 
-public class WebViewLink: NSObject {
+public class CueSDK: NSObject {
     let cueSDKName = "cueSDK"
     let torchServiceName = "torch"
     let vibrationServiceName = "vibration"
@@ -51,7 +51,7 @@ public class WebViewLink: NSObject {
     public var isTorchLocked: Bool = false
     
     lazy var cameraController: CameraController = {
-        let camController = CameraController(webViewLink: self)
+        let camController = CameraController(cueSDK: self)
         camController.modalPresentationStyle = .overFullScreen
         return camController
     }()
@@ -422,7 +422,7 @@ public class WebViewLink: NSObject {
 
 // MARK: SDK methods, WebView communication
 
-extension WebViewLink: WKScriptMessageHandler{
+extension CueSDK: WKScriptMessageHandler{
     
     fileprivate func processParams(_ params: ParamsArray) {
         if let requestId = params[0] as? Int {

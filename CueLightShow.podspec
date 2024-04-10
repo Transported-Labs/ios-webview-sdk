@@ -16,7 +16,7 @@ Pod::Spec.new do |spec|
   #
 
   spec.name         = "CueLightShow"
-  spec.version      = "0.0.12"
+  spec.version      = "0.0.13"
   spec.summary      = "CueLightShow is an assistant library used by Web-version of CUE Live 2.0 Lightshows"
   spec.readme       = "https://github.com/Transported-Labs/ios-webview-sdk/blob/main/README.md"
 

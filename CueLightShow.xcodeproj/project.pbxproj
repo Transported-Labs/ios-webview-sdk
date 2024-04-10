@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		521F11F62BBFDA9700356A2D /* WebViewLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 521F11F52BBFDA9700356A2D /* WebViewLink.swift */; };
+		521F11F62BBFDA9700356A2D /* CueSDK.swift in Sources */ = {isa = PBXBuildFile; fileRef = 521F11F52BBFDA9700356A2D /* CueSDK.swift */; };
 		81F5A9542A0124E00059B694 /* CueLightShow.h in Headers */ = {isa = PBXBuildFile; fileRef = 81F5A9512A0124E00059B694 /* CueLightShow.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		81F5A95F2A0125D40059B694 /* WebViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81F5A95C2A0125D30059B694 /* WebViewController.swift */; };
 		81F7B6132AE6D4F200719C59 /* PhotoButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81F7B60E2AE6D4F100719C59 /* PhotoButton.swift */; };
@@ -18,7 +18,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		521F11F52BBFDA9700356A2D /* WebViewLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewLink.swift; sourceTree = "<group>"; };
+		521F11F52BBFDA9700356A2D /* CueSDK.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CueSDK.swift; sourceTree = "<group>"; };
 		81F5A94E2A0124E00059B694 /* CueLightShow.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = CueLightShow.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		81F5A9512A0124E00059B694 /* CueLightShow.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CueLightShow.h; sourceTree = "<group>"; };
 		81F5A95C2A0125D30059B694 /* WebViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WebViewController.swift; sourceTree = "<group>"; };
@@ -61,7 +61,7 @@
 			children = (
 				81F5A9512A0124E00059B694 /* CueLightShow.h */,
 				81F5A95C2A0125D30059B694 /* WebViewController.swift */,
-				521F11F52BBFDA9700356A2D /* WebViewLink.swift */,
+				521F11F52BBFDA9700356A2D /* CueSDK.swift */,
 				81F7B6162AE6D76500719C59 /* CameraController.swift */,
 				81F7B61A2AE7FADD00719C59 /* CameraLink.swift */,
 				81F7B60B2AE6D4F100719C59 /* CameraUI */,
@@ -160,7 +160,7 @@
 			files = (
 				81F7B6132AE6D4F200719C59 /* PhotoButton.swift in Sources */,
 				81F7B61B2AE7FADD00719C59 /* CameraLink.swift in Sources */,
-				521F11F62BBFDA9700356A2D /* WebViewLink.swift in Sources */,
+				521F11F62BBFDA9700356A2D /* CueSDK.swift in Sources */,
 				81F7B6172AE6D76500719C59 /* CameraController.swift in Sources */,
 				81F5A95F2A0125D40059B694 /* WebViewController.swift in Sources */,
 				81F7B6142AE6D4F200719C59 /* BottomBar.swift in Sources */,

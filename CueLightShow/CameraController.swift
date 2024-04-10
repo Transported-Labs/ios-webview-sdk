@@ -37,14 +37,14 @@ class CameraController: UIViewController {
         return spinner
     }()
     
-    private var webViewLink: WebViewLink!
+    private var cueSDK: CueSDK!
     private var bottomBar: BottomBar!
     private lazy var cameraLink = CameraLink()
     private var isVideoRecording: Bool = false
 
-    init(webViewLink: WebViewLink) {
+    init(cueSDK: CueSDK) {
         super.init(nibName: nil, bundle: nil)
-        self.webViewLink = webViewLink
+        self.cueSDK = cueSDK
         self.bottomBar = BottomBar()
     }
 
@@ -59,7 +59,7 @@ class CameraController: UIViewController {
     private func prepareCameraLink() {
         bottomBar.setButtonsHidden(isHidden: true)
         waitingSpinner.isHidden = false
-        webViewLink.isTorchLocked = true
+        cueSDK.isTorchLocked = true
         cameraLink.turnTorchOff()
         
         cameraLink.setup { [self] (error) in
@@ -74,7 +74,7 @@ class CameraController: UIViewController {
                     showToast(message: "Preview cannot be prepared, try again later")
                 }
             }
-            webViewLink.isTorchLocked = false
+            cueSDK.isTorchLocked = false
             waitingSpinner.isHidden = true
         }
     }
