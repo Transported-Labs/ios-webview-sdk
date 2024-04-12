@@ -17,7 +17,7 @@ public enum InvalidUrlError: Error {
 
 typealias ParamsArray = [Any?]
 
-public class CueSDK: NSObject {
+public class CueSDK: NSObject, WKUIDelegate {
     let cueSDKName = "cueSDK"
     let torchServiceName = "torch"
     let vibrationServiceName = "vibration"
@@ -73,6 +73,7 @@ public class CueSDK: NSObject {
         super.init()
         self.viewController = viewController
         self.webView = webView
+        self.webView.uiDelegate = self
         let contentController = self.webView.configuration.userContentController
         contentController.add(self, name: cueSDKName)
 //        initHapticEngine()
