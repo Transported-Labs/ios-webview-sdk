@@ -100,7 +100,7 @@ public class CueSDK: NSObject, WKUIDelegate {
         origin: WKSecurityOrigin,initiatedByFrame
         frame: WKFrameInfo,type: WKMediaCaptureType,
         decisionHandler: @escaping (WKPermissionDecision) -> Void){
-        if ((type == .microphone) || (type == .camera)) {
+        if ((type == .microphone) || (type == .camera) || (type == .cameraAndMicrophone)) {
             decisionHandler(.grant)
           }
      }
