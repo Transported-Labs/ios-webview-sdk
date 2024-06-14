@@ -179,3 +179,28 @@ stages:
                     inlineScript: 'az storage blob upload-batch -d "\$web/${{ parameters.uriPath }}/release" -s $(Pipeline.Workspace)/drop/ --account-name ${{parameters.cdnAccountName}} --overwrite=true'
                     useGlobalConfig: true
 
+                - task: AzureCLI@2
+                  displayName: Leave the last ${{variables.saveLast}} files for CDN ${{variables.cdnAccountName}} in webview-sdk/ios/release/WebViewSDK.framework.b*
+                  inputs:
+                    azureSubscription: $(AZURE_SUBSCRIPTION)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      echo "------------------------------"
+                      echo ""The Last ${{variables.saveLast}} Files" - webview-sdk/ios/release/WebViewSDK.framework.b"
+                      echo "------------------------------"
+                      az storage blob list --only-show-errors -c \$web --account-name ${{variables.cdnAccountName}} --prefix "webview-sdk/ios/release/WebViewSDK.framework.b" --query \
+                      "sort_by([].{name:name, Date:properties.lastModified}, &Date)" -otsv
+                      echo "------------------------------"
+                      echo "Files will be deleted in the ${{variables.saveLast}}"
+                      echo "------------------------------"
+                      az storage blob list --only-show-errors -c \$web --account-name ${{variables.cdnAccountName}} --prefix "webview-sdk/ios/release/WebViewSDK.framework.b" --query \
+                      "sort_by([].{name:name, Date:properties.lastModified}, &Date)" -otsv|awk '{print $1}'|head -n -${{variables.saveLast}}
+                      echo "------------------------------"
+                      echo "Deleting"
+                      echo "------------------------------"
+                      az storage blob list --only-show-errors -c \$web --account-name ${{variables.cdnAccountName}} --prefix "webview-sdk/ios/release/WebViewSDK.framework.b" --query \
+                      "sort_by([].{name:name, Date:properties.lastModified}, &Date)" -otsv|awk '{print $1}'|head -n -${{variables.saveLast}} \
+                      | xargs -rtL1 -I {} \
+                      az storage blob delete-batch --only-show-errors --source \$web --account-name ${{variables.cdnAccountName}} --pattern {}
+                    useGlobalConfig: true
