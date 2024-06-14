@@ -10,11 +10,17 @@ import UIKit
 import WebKit
 
 public typealias ProgressHandler = (_ progress: Int) -> ()
+public typealias LoadingStatusHandler = (_ urlString: String, _ sizeString: String) -> ()
 
-public class WebViewController: UIViewController {
+struct AppConstant {
+    static let cueScheme = "cue-data"
+}
+
+public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSchemeHandler {
 
     private var cueSDK: CueSDK!
     private var progressHandler: ProgressHandler?
+    private var loadingStatusHandler: LoadingStatusHandler?
 
     public var isExitButtonHidden: Bool {
         get {
@@ -30,11 +36,13 @@ public class WebViewController: UIViewController {
         webConfiguration.allowsInlineMediaPlayback = true
         webConfiguration.allowsAirPlayForMediaPlayback = true
         webConfiguration.allowsPictureInPictureMediaPlayback = true
+        webConfiguration.setURLSchemeHandler(self, forURLScheme: AppConstant.cueScheme)
         if #available(iOS 14.0, *) {
             webConfiguration.defaultWebpagePreferences.allowsContentJavaScript = true
         }
         let wv = WKWebView(frame: .zero, configuration: webConfiguration)
         wv.translatesAutoresizingMaskIntoConstraints = false
+        wv.navigationDelegate = self
         return wv
     }()
 
@@ -98,13 +106,17 @@ public class WebViewController: UIViewController {
     }
     
     ///  Navigates to the url in embedded WKWebView-object
-    public func navigateTo(url: URL, progressHandler: ProgressHandler? = nil) throws {
+    public func navigateTo(url: URL, progressHandler: ProgressHandler? = nil, loadingStatusHandler: LoadingStatusHandler? = nil) throws {
         if UIApplication.shared.canOpenURL(url) {
             if progressHandler != nil {
                 self.progressHandler = progressHandler
                 webView.addObserver(self, forKeyPath: #keyPath(WKWebView.estimatedProgress), options: .new, context: nil)
             }
-            webView.load(URLRequest(url: url))
+            if loadingStatusHandler != nil {
+                self.loadingStatusHandler = loadingStatusHandler
+            }
+            let cueURL = self.changeURLScheme(newScheme: AppConstant.cueScheme, forURL: url)!
+            webView.load(URLRequest(url: cueURL))
         } else {
             throw InvalidUrlError.runtimeError("Invalid URL: \(url.absoluteString)")
         }
@@ -126,6 +138,55 @@ public class WebViewController: UIViewController {
     @objc func reloadWebView(_ sender: UIRefreshControl) {
         webView.reload()
         sender.endRefreshing()
+    }
+    
+    func changeURLScheme(newScheme: String, forURL: URL?) -> URL? {
+        var components: NSURLComponents?
+        if let forURL {
+            components = NSURLComponents(url: forURL, resolvingAgainstBaseURL: true)
+        }
+        components?.scheme = newScheme
+        return components?.url
+    }
+    
+    public func webView(_ webView: WKWebView, start urlSchemeTask: WKURLSchemeTask) {
+        // Handle WKURLSchemeTask delegate methods
+        if let url = changeURLScheme(newScheme: "https", forURL: urlSchemeTask.request.url) {
+            print("Start loading: \(url.absoluteString)")
+            URLSession.shared.dataTask(with: url) { (cueData, cueResponse, error) in
+                if let data = cueData, let response = cueResponse {
+                    urlSchemeTask.didReceive(response)
+                    urlSchemeTask.didReceive(data)
+                    urlSchemeTask.didFinish()
+                    print("Finish loading: \(url.absoluteString)")
+                    if let loadingStatusHandler = self.loadingStatusHandler {
+                        let urlString = url.absoluteString
+                        let sizeString = "\(data)"
+                        loadingStatusHandler(urlString, sizeString)
+                    }
+                }
+            }.resume()
+        }
+    }
+
+    public func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {
+        print("Stopped loading \(urlSchemeTask.request.url?.absoluteString ?? "")\n")
+    }
+    
+    public func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        let js = """
+        (window.onload = function() {
+            var links = document.querySelectorAll('video');
+            for(i = 0; i < links.length; i++) {
+              href = links[i].getAttribute('src');
+              links[i].src = href.replace('https', 'cue-data');
+            }
+        })();
+        """
+        print("WKWebView, didCommit")
+        webView.evaluateJavaScript(js, completionHandler: { (result, error) -> Void in
+            print(error?.localizedDescription ?? "Scheme is changed successfully")
+        })
     }
     
 }
