@@ -8,19 +8,30 @@
 
 import UIKit
 import WebKit
+import UniformTypeIdentifiers
 
-public typealias ProgressHandler = (_ progress: Int) -> ()
-public typealias LoadingStatusHandler = (_ urlString: String, _ sizeString: String) -> ()
+public typealias LogHandler = (_ urlString: String) -> ()
+
+enum ContentLoadType {
+    case none
+    case prefetch
+    case navigate
+}
 
 struct AppConstant {
     static let cueScheme = "cue-data"
+    static let httpsScheme = "https"
+    static let cacheDirectoryName = "cache"
+    static let cacheFilesPattern = "/files/"
+    static let regexAllowedLetters = "[^0-9a-zA-Z.\\-]"
 }
 
 public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSchemeHandler {
 
     private var cueSDK: CueSDK!
-    private var progressHandler: ProgressHandler?
-    private var loadingStatusHandler: LoadingStatusHandler?
+    private var logHandler: LogHandler?
+    private var contentLoadType: ContentLoadType = .none
+    private var cachePattern = ".svg"
 
     public var isExitButtonHidden: Bool {
         get {
@@ -96,29 +107,34 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         UIApplication.shared.isIdleTimerDisabled = false
     }
     
-    public override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
-        if keyPath == "estimatedProgress" {
-            let progress = Int(webView.estimatedProgress * 100.0)
-            if let progressHandler = self.progressHandler {
-                progressHandler(progress)
+    ///  Navigates to the url in embedded WKWebView-object
+    public func navigateTo(urlString: String, logHandler: LogHandler? = nil) throws {
+        if let url = URL(string: urlString) {
+            if UIApplication.shared.canOpenURL(url) {
+                contentLoadType = .navigate
+                self.logHandler = logHandler
+                adjustOriginParams(url: url)
+                let cueURL = self.changeURLScheme(newScheme: AppConstant.cueScheme, forURL: url)!
+                addToLog("*** Started new NAVIGATE process ***")
+                webView.load(URLRequest(url: cueURL))
+            } else {
+                throw InvalidUrlError.runtimeError("Invalid URL: \(url.absoluteString)")
             }
         }
     }
     
-    ///  Navigates to the url in embedded WKWebView-object
-    public func navigateTo(url: URL, progressHandler: ProgressHandler? = nil, loadingStatusHandler: LoadingStatusHandler? = nil) throws {
-        if UIApplication.shared.canOpenURL(url) {
-            if progressHandler != nil {
-                self.progressHandler = progressHandler
-                webView.addObserver(self, forKeyPath: #keyPath(WKWebView.estimatedProgress), options: .new, context: nil)
+    public func prefetch(urlString: String, logHandler: LogHandler? = nil) throws {
+        if let url = URL(string: "\(urlString)&preload=true") {
+            if UIApplication.shared.canOpenURL(url) {
+                contentLoadType = .prefetch
+                self.logHandler = logHandler
+                adjustOriginParams(url: url)
+                let cueURL = self.changeURLScheme(newScheme: AppConstant.cueScheme, forURL: url)!
+                addToLog("*** Started new PREFETCH process ***")
+                webView.load(URLRequest(url: cueURL))
+            } else {
+                throw InvalidUrlError.runtimeError("Invalid URL: \(url.absoluteString)")
             }
-            if loadingStatusHandler != nil {
-                self.loadingStatusHandler = loadingStatusHandler
-            }
-            let cueURL = self.changeURLScheme(newScheme: AppConstant.cueScheme, forURL: url)!
-            webView.load(URLRequest(url: cueURL))
-        } else {
-            throw InvalidUrlError.runtimeError("Invalid URL: \(url.absoluteString)")
         }
     }
     
@@ -151,21 +167,31 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
     
     public func webView(_ webView: WKWebView, start urlSchemeTask: WKURLSchemeTask) {
         // Handle WKURLSchemeTask delegate methods
-        if let url = changeURLScheme(newScheme: "https", forURL: urlSchemeTask.request.url) {
-            print("Start loading: \(url.absoluteString)")
-            URLSession.shared.dataTask(with: url) { (cueData, cueResponse, error) in
-                if let data = cueData, let response = cueResponse {
-                    urlSchemeTask.didReceive(response)
-                    urlSchemeTask.didReceive(data)
-                    urlSchemeTask.didFinish()
-                    print("Finish loading: \(url.absoluteString)")
-                    if let loadingStatusHandler = self.loadingStatusHandler {
-                        let urlString = url.absoluteString
-                        let sizeString = "\(data)"
-                        loadingStatusHandler(urlString, sizeString)
+        if let url = changeURLScheme(newScheme: AppConstant.httpsScheme, forURL: urlSchemeTask.request.url) {
+            let urlString = url.absoluteString
+            let fileName = makeFileNameFromUrl(url: url)
+            let shortFileName = shorten(fileName)
+            print("Start loading: \(urlString)")
+            // Check condition for cached files
+            if urlString.contains(cachePattern) {
+                switch contentLoadType {
+                case .none:
+                    print("Not prefetch or navigate")
+                case .prefetch:
+                    saveToCache(url: url, task: urlSchemeTask)
+                case .navigate:
+                    if loadFromCache(url: url, task: urlSchemeTask) {
+                        addToLog("Loaded from cache: \(shortFileName)")
+                    } else {
+                        downloadFromWeb(url: url, task: urlSchemeTask)
+                        addToLog("Loaded NOT from cache, from url: \(urlString)")
                     }
                 }
-            }.resume()
+            } else {
+                // Usual download from web without cache
+                downloadFromWeb(url: url, task: urlSchemeTask)
+            }
+            
         }
     }
 
@@ -173,20 +199,164 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         print("Stopped loading \(urlSchemeTask.request.url?.absoluteString ?? "")\n")
     }
     
-    public func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
-        let js = """
-        (window.onload = function() {
-            var links = document.querySelectorAll('video');
-            for(i = 0; i < links.length; i++) {
-              href = links[i].getAttribute('src');
-              links[i].src = href.replace('https', 'cue-data');
+    public func showCache() -> String {
+        var resultMessage = ""
+        var index = 0
+        let fileManager = FileManager.default
+        do {
+            let documentsDirectory = try fileManager.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
+            let cacheDirectory = documentsDirectory.appendingPathComponent(AppConstant.cacheDirectoryName, isDirectory: true)
+            if let enumerator = fileManager.enumerator(at: cacheDirectory,
+                                                               includingPropertiesForKeys: nil,
+                                                               options: .skipsHiddenFiles) {
+                for case let fileURL as URL in enumerator {
+                    index += 1
+                    resultMessage += "\(index). \(shorten(fileURL.path))\n"
+                }
             }
-        })();
-        """
-        print("WKWebView, didCommit")
-        webView.evaluateJavaScript(js, completionHandler: { (result, error) -> Void in
-            print(error?.localizedDescription ?? "Scheme is changed successfully")
-        })
+        } catch {
+            resultMessage += "Error: \(error)"
+        }
+        return resultMessage
     }
     
+    public func clearCache() -> String {
+        var resultMessage = ""
+        let fileManager = FileManager.default
+        do {
+            let documentsDirectory = try fileManager.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
+            let cacheDirectory = documentsDirectory.appendingPathComponent(AppConstant.cacheDirectoryName, isDirectory: true)
+            if let enumerator = fileManager.enumerator(at: cacheDirectory,
+                                                               includingPropertiesForKeys: nil,
+                                                               options: .skipsHiddenFiles) {
+                for case let fileURL as URL in enumerator {
+                    resultMessage += "Deleted: '\(shorten(fileURL.path))'\n"
+                    try fileManager.removeItem(at: fileURL)
+                }
+            }
+        } catch {
+            resultMessage += "Error in delete: \(error)"
+        }
+        return resultMessage
+    }
+    
+    fileprivate func saveToCache(url: URL, task: WKURLSchemeTask) {
+        let fileName = makeFileNameFromUrl(url: url)
+        let shortFileName = shorten(fileName)
+        URLSession.shared.dataTask(with: url) { (cueData, cueResponse, error) in
+            if let data = cueData, let response = cueResponse {
+                let fileManager = FileManager.default
+                // Get the Document Directory URL
+                if let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
+                    var resultMessage: String = ""
+                    // Get the Cache Directory URL
+                    let cacheDirectory = documentsDirectory.appendingPathComponent(AppConstant.cacheDirectoryName, isDirectory: true)
+                    do {
+                        if !fileManager.fileExists(atPath: cacheDirectory.path){
+                            try fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true, attributes: nil)
+                        }
+                        let fileURL = cacheDirectory.appendingPathComponent(fileName)
+                        // Remove previous possible file version
+                        if fileManager.fileExists(atPath: fileURL.path){
+                            try fileManager.removeItem(at: fileURL)
+                            resultMessage = "Overwritten in cache"
+                        } else {
+                            resultMessage = "Added to cache"
+                        }
+                        // Save the downloaded file to a desired location
+                        try data.write(to: fileURL, options: [.atomic])
+                    } catch {
+                        resultMessage = "Failed to save in cache, error: \(error.localizedDescription)"
+                    }
+                    self.addToLog("\(resultMessage): \(shortFileName)")
+                }                
+                task.didReceive(response)
+                task.didReceive(data)
+                task.didFinish()
+            }
+        }.resume()
+    }
+    
+    fileprivate func loadFromCache(url: URL, task: WKURLSchemeTask) -> Bool {
+        let mimeType = url.absoluteString.mimeType()
+        guard let fileUrl = fileUrlFromUrl(url: url),
+              let data = try? Data(contentsOf: fileUrl) else { return false }
+       
+        let response = HTTPURLResponse(url: url,
+                                       mimeType: mimeType,
+                                       expectedContentLength: data.count, textEncodingName: nil)
+        task.didReceive(response)
+        task.didReceive(data)
+        task.didFinish()
+        return true
+    }
+    
+    fileprivate func downloadFromWeb(url: URL, task: WKURLSchemeTask) {
+        URLSession.shared.dataTask(with: url) { (cueData, cueResponse, error) in
+            if let data = cueData, let response = cueResponse {
+                task.didReceive(response)
+                task.didReceive(data)
+                task.didFinish()
+            }
+        }.resume()
+    }
+    
+    fileprivate func  adjustOriginParams(url: URL) {
+//        cachePattern = ".\(url.rootDomain)\(AppConstant.cacheFilesPattern)"
+    }
+    
+    fileprivate func makeFileNameFromUrl(url: URL) -> String {
+        var fileName = url.absoluteString
+        fileName.removingRegexMatches(pattern: AppConstant.regexAllowedLetters, replaceWith: "_")
+        return fileName
+    }
+    
+    fileprivate func fileUrlFromUrl(url: URL) -> URL? {
+        let fileManager = FileManager.default
+        if let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
+            let localFileName = makeFileNameFromUrl(url: url)
+            let fileURL = documentsDirectory.appendingPathComponent("\(AppConstant.cacheDirectoryName)/\(localFileName)")
+            return fileURL
+        } else {
+            return nil
+        }
+    }
+    
+    fileprivate func shorten(_ fileName: String) -> String {
+        if let index = fileName.range(of: "_", options: .backwards)?.upperBound {
+            let afterEqualsTo = String(fileName.suffix(from: index))
+            return afterEqualsTo
+        } else {
+            return fileName
+        }
+    }
+    
+    fileprivate func addToLog(_ logLine: String) {
+        if let logHandler = self.logHandler {
+            logHandler(logLine)
+            print("Log: \(logLine)")
+        }
+    }
+}
+
+extension String {
+    mutating func removingRegexMatches(pattern: String, replaceWith: String = "") {
+        do {
+            let regex = try NSRegularExpression(pattern: pattern, options: .caseInsensitive)
+            let range = NSRange(location: 0, length: count)
+            self = regex.stringByReplacingMatches(in: self, options: [], range: range, withTemplate: replaceWith)
+        } catch { return }
+    }
+}
+
+extension URL {
+    var rootDomain: String {
+        guard let hostName = self.host else { return "" }
+        let components = hostName.components(separatedBy: ".")
+        if components.count > 1 {
+            return components.last ?? ""
+        } else {
+            return hostName
+        }
+    }
 }
