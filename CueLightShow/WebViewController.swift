@@ -32,6 +32,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
     private var logHandler: LogHandler?
     private var contentLoadType: ContentLoadType = .none
     private var cachePattern = ".svg"
+    private var savedBrightness: CGFloat = CGFloat(0.0)
 
     public var isExitButtonHidden: Bool {
         get {
@@ -99,12 +100,15 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         cueSDK.isTorchLocked = false
         // Keep alive during the show
         UIApplication.shared.isIdleTimerDisabled = true
+        savedBrightness = UIScreen.main.brightness
+        UIScreen.main.brightness = CGFloat(1.0)
     }
     
     public override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         // Return keep alive back to false
         UIApplication.shared.isIdleTimerDisabled = false
+        UIScreen.main.brightness = savedBrightness
     }
     
     ///  Navigates to the url in embedded WKWebView-object
