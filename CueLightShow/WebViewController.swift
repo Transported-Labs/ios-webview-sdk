@@ -43,7 +43,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         }
     }
     
-    lazy var webView: WKWebView = {
+    fileprivate func initWebView() -> WKWebView {
         let webConfiguration = WKWebViewConfiguration()
         webConfiguration.allowsInlineMediaPlayback = true
         webConfiguration.allowsAirPlayForMediaPlayback = true
@@ -56,6 +56,10 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         wv.translatesAutoresizingMaskIntoConstraints = false
         wv.navigationDelegate = self
         return wv
+    }
+    
+    lazy var webView: WKWebView = {
+        return initWebView()
     }()
 
     private lazy var exitButton: UIButton = {
@@ -127,7 +131,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         }
     }
     
-    public func prefetch(urlString: String, logHandler: LogHandler? = nil) throws {
+    public func prefetch(urlString: String, mainView: UIView? = nil, logHandler: LogHandler? = nil) throws {
         if let url = URL(string: "\(urlString)&preload=true") {
             if UIApplication.shared.canOpenURL(url) {
                 contentLoadType = .prefetch
@@ -135,7 +139,14 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
                 adjustOriginParams(url: url)
                 let cueURL = self.changeURLScheme(newScheme: AppConstant.cueScheme, forURL: url)!
                 addToLog("*** Started new PREFETCH process ***")
-                webView.load(URLRequest(url: cueURL))
+                // Create separate webView and make it visible on mainView to allow scripts to run correctly
+                let prefetchWebView = initWebView()
+                if let view = mainView {
+                    view.addSubview(prefetchWebView)
+                    let prefetchCueSDK = CueSDK(viewController: self, webView: prefetchWebView)
+                    print("Created prefetchCueSDK: \(prefetchCueSDK)")
+                }
+                prefetchWebView.load(URLRequest(url: cueURL))
             } else {
                 throw InvalidUrlError.runtimeError("Invalid URL: \(url.absoluteString)")
             }
@@ -306,7 +317,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
     }
     
     fileprivate func  adjustOriginParams(url: URL) {
-//        cachePattern = ".\(url.rootDomain)\(AppConstant.cacheFilesPattern)"
+        cachePattern = ".\(url.rootDomain)\(AppConstant.cacheFilesPattern)"
     }
     
     fileprivate func makeFileNameFromUrl(url: URL) -> String {
