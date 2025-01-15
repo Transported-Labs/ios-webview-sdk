@@ -23,9 +23,9 @@ class ViewController: UIViewController {
             return
         }
         let sdkController = WebViewController()
-        if let url = URL(string: urlString) {
+        if URL(string: urlString) != nil {
             do {
-                try sdkController.navigateTo(url: url)
+                try sdkController.navigateTo(urlString: urlString)
                 sdkController.modalPresentationStyle = .fullScreen
                 sdkController.isExitButtonHidden = true
                 present(sdkController, animated: true)
@@ -44,6 +44,7 @@ class ViewController: UIViewController {
             return
         }
         let url = URL(string: "https://dev-dxp.azurewebsites.net/api/light-show/get-version-url?version=\(appVersion)")!
+        print("URL to read address: \(url.absoluteString)")
         let task = session.dataTask(with: url) { data, response, error in
             if error != nil {
                 self.showToast("Client error: \(String(describing: error?.localizedDescription))")
@@ -58,6 +59,7 @@ class ViewController: UIViewController {
                 return
             }
             if let target = String(data: data!, encoding: .utf8) {
+                print("URL to navgate: \(target)")
                 DispatchQueue.main.async {
                     self.navigateToURL(urlString: target)
                 }

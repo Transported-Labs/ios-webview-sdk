@@ -31,7 +31,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
     private var cueSDK: CueSDK!
     private var logHandler: LogHandler?
     private var contentLoadType: ContentLoadType = .none
-    private var cachePattern = ".svg"
+    private var cachePattern = "" // will be set up in runtime
     private var savedBrightness: CGFloat = CGFloat(0.0)
 
     public var isExitButtonHidden: Bool {
@@ -122,7 +122,11 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
                 contentLoadType = .navigate
                 self.logHandler = logHandler
                 adjustOriginParams(url: url)
-                let cueURL = self.changeURLScheme(newScheme: AppConstant.cueScheme, forURL: url)!
+                let cueURL = url
+                // Commented out to avoid Exception: This task has already been stopped, url: Optional(https://idea-cue.stagingdxp.com/games/light-show/assets/index.8c9b7e3e.js)
+//                if !urlString.contains("qrCode=true") {
+//                    cueURL = self.changeURLScheme(newScheme: AppConstant.cueScheme, forURL: url)!
+//                }
                 addToLog("*** Started new NAVIGATE process ***")
                 webView.load(URLRequest(url: cueURL))
             } else {
@@ -285,9 +289,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
                     }
                     self.addToLog("\(resultMessage): \(shortFileName)")
                 }                
-                task.didReceive(response)
-                task.didReceive(data)
-                task.didFinish()
+                self.processTaskFinish(task, response, data)
             }
         }.resume()
     }
@@ -300,20 +302,28 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         let response = HTTPURLResponse(url: url,
                                        mimeType: mimeType,
                                        expectedContentLength: data.count, textEncodingName: nil)
-        task.didReceive(response)
-        task.didReceive(data)
-        task.didFinish()
+        self.processTaskFinish(task, response, data)
         return true
     }
     
     fileprivate func downloadFromWeb(url: URL, task: WKURLSchemeTask) {
         URLSession.shared.dataTask(with: url) { (cueData, cueResponse, error) in
             if let data = cueData, let response = cueResponse {
-                task.didReceive(response)
-                task.didReceive(data)
-                task.didFinish()
+                self.processTaskFinish(task, response, data)
             }
         }.resume()
+    }
+    
+    // Safely finishes the task, catching the possible exception
+    fileprivate func processTaskFinish(_ task: WKURLSchemeTask, _ response: URLResponse, _ data: Data) {
+        let exception = tryBlock {
+            task.didReceive(response)
+            task.didReceive(data)
+            task.didFinish()
+        }
+        if let error = exception {
+            print("processTaskFinish Exception: \(error), url: \(String(describing: response.url))")
+        }
     }
     
     fileprivate func  adjustOriginParams(url: URL) {
