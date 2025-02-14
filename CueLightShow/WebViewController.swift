@@ -122,8 +122,9 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
                 contentLoadType = .navigate
                 self.logHandler = logHandler
                 adjustOriginParams(url: url)
-                let cueURL = url
-                // Commented out to avoid Exception: This task has already been stopped, url: Optional(https://idea-cue.stagingdxp.com/games/light-show/assets/index.8c9b7e3e.js)
+                // Returned back the change of URLScheme to cueScheme
+                let cueURL = self.changeURLScheme(newScheme: AppConstant.cueScheme, forURL: url)!
+                // Was commented out to avoid Exception: This task has already been stopped, url: Optional(https://idea-cue.stagingdxp.com/games/light-show/assets/index.8c9b7e3e.js)
 //                if !urlString.contains("qrCode=true") {
 //                    cueURL = self.changeURLScheme(newScheme: AppConstant.cueScheme, forURL: url)!
 //                }
@@ -202,7 +203,8 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
                     if loadFromCache(url: url, task: urlSchemeTask) {
                         addToLog("Loaded from cache: \(shortFileName)")
                     } else {
-                        downloadFromWeb(url: url, task: urlSchemeTask)
+                        // In navigate-mode also save to cache to prepare resources for future appearence in timeline
+                        saveToCache(url: url, task: urlSchemeTask)
                         addToLog("Loaded NOT from cache, from url: \(urlString)")
                     }
                 }
@@ -322,7 +324,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
             task.didFinish()
         }
         if let error = exception {
-            print("processTaskFinish Exception: \(error), url: \(String(describing: response.url))")
+            addToLog("EXCEPTION: \(error), url: \(String(describing: response.url))")
         }
     }
     
@@ -357,9 +359,9 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
     }
     
     fileprivate func addToLog(_ logLine: String) {
+        print("Log: \(logLine)")
         if let logHandler = self.logHandler {
             logHandler(logLine)
-            print("Log: \(logLine)")
         }
     }
 }
