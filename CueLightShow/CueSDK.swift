@@ -31,6 +31,8 @@ public class CueSDK: NSObject, WKUIDelegate {
     let sparkleMethodName = "sparkle"
     let advancedSparkleMethodName = "advancedSparkle"
     let saveMediaMethodName = "saveMedia"
+    let saveCacheFileName = "saveCacheFile"
+    let getCacheFileName = "getCacheFile"
     let askMicMethodName = "getMicPermission"
     let askCamMethodName = "getCameraPermission"
     let askSavePhotoMethodName = "getSavePhotoPermission"
@@ -326,6 +328,28 @@ public class CueSDK: NSObject, WKUIDelegate {
         }
     }
     
+    private func saveCacheFile(fileName: String, dataStr: String) {
+        let data = Data(dataStr.utf8)
+        let logMessage = IoUtils.shared.saveMediaToFile(fileName: fileName, data: data)
+        print(logMessage)
+        if (logMessage.contains("Error")) {
+            errorToJavaScript("\(logMessage), file: \(fileName)")
+        } else {
+            sendToJavaScript(result: nil)
+        }
+    }
+    
+    private func sendCacheFileToJavascript(fileName: String) {
+        let mediaFromCache = IoUtils.shared.loadMediaFromCacheFile(fileName: fileName)
+        print(mediaFromCache.logMessage)
+        if let data = mediaFromCache.data {
+            let inputAsString = String(decoding: data, as: UTF8.self)
+            sendToJavaScript(result: inputAsString)
+        } else {
+            errorToJavaScript("Error with file \(fileName): \(mediaFromCache.logMessage)")
+        }
+    }
+    
     // MARK: Audio/vibration methods
     
     private func initAudioSession() {
@@ -485,7 +509,20 @@ extension CueSDK: WKScriptMessageHandler{
                             let filename = params[4] as? String  {
                             saveMedia(data: data, filename: filename)
                         } else {
-                            errorToJavaScript("Duration: null is not valid value")
+                            errorToJavaScript("Params data and filename must be not null")
+                        }
+                    case saveCacheFileName: 
+                        if let fileName = params[3] as? String,
+                            let data = params[4] as? String {
+                            saveCacheFile(fileName: fileName, dataStr: data)
+                        } else {
+                            errorToJavaScript("Params fileName and data must be not null")
+                        }
+                    case getCacheFileName:
+                        if let fileName = params[3] as? String {
+                            sendCacheFileToJavascript(fileName: fileName)
+                        } else {
+                            errorToJavaScript("Param fileName must be not null")
                         }
                     default: break
                     }

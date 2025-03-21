@@ -266,31 +266,8 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         let shortFileName = shorten(fileName)
         URLSession.shared.dataTask(with: url) { (cueData, cueResponse, error) in
             if let data = cueData, let response = cueResponse {
-                let fileManager = FileManager.default
-                // Get the Document Directory URL
-                if let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
-                    var resultMessage: String = ""
-                    // Get the Cache Directory URL
-                    let cacheDirectory = documentsDirectory.appendingPathComponent(AppConstant.cacheDirectoryName, isDirectory: true)
-                    do {
-                        if !fileManager.fileExists(atPath: cacheDirectory.path){
-                            try fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true, attributes: nil)
-                        }
-                        let fileURL = cacheDirectory.appendingPathComponent(fileName)
-                        // Remove previous possible file version
-                        if fileManager.fileExists(atPath: fileURL.path){
-                            try fileManager.removeItem(at: fileURL)
-                            resultMessage = "Overwritten in cache"
-                        } else {
-                            resultMessage = "Added to cache"
-                        }
-                        // Save the downloaded file to a desired location
-                        try data.write(to: fileURL, options: [.atomic])
-                    } catch {
-                        resultMessage = "Failed to save in cache, error: \(error.localizedDescription)"
-                    }
-                    self.addToLog("\(resultMessage): \(shortFileName)")
-                }                
+                let resultMessage = IoUtils.shared.saveMediaToFile(fileName: fileName, data:data)
+                self.addToLog("\(resultMessage): \(shortFileName)")
                 self.processTaskFinish(task, response, data)
             }
         }.resume()
