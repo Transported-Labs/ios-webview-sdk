@@ -24,11 +24,13 @@ struct AppConstant {
     static let cacheDirectoryName = "cache"
     static let cacheFilesPattern = "/files/"
     static let regexAllowedLetters = "[^0-9a-zA-Z.\\-]"
+    static let indexHtml = "index.html"
+    static let indexFileName = "index.json"
+    static let gameAssetsPath = "games/light-show"
 }
 
 public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSchemeHandler {
 
-    private var cueSDK: CueSDK!
     private var logHandler: LogHandler?
     private var contentLoadType: ContentLoadType = .none
     private var cachePattern = "" // will be set up in runtime
@@ -43,7 +45,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         }
     }
     
-    fileprivate func initWebView() -> WKWebView {
+    public func initWebView() -> WKWebView {
         let webConfiguration = WKWebViewConfiguration()
         webConfiguration.allowsInlineMediaPlayback = true
         webConfiguration.allowsAirPlayForMediaPlayback = true
@@ -55,11 +57,18 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         let wv = WKWebView(frame: .zero, configuration: webConfiguration)
         wv.translatesAutoresizingMaskIntoConstraints = false
         wv.navigationDelegate = self
+//        if #available(iOS 16.4, *) {
+//            wv.isInspectable = true
+//        }
         return wv
     }
     
-    lazy var webView: WKWebView = {
+    public lazy var webView: WKWebView = {
         return initWebView()
+    }()
+
+    public lazy var cueSDK: CueSDK = {
+        return CueSDK(viewController: self, webView: self.webView)
     }()
 
     private lazy var exitButton: UIButton = {
@@ -96,7 +105,6 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         let refreshControl = UIRefreshControl()
         refreshControl.addTarget(self, action: #selector(reloadWebView(_:)), for: .valueChanged)
         webView.scrollView.addSubview(refreshControl)
-        cueSDK = CueSDK(viewController: self, webView: self.webView)
     }
     
     public override func viewWillAppear(_ animated: Bool) {
@@ -122,17 +130,25 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
                 contentLoadType = .navigate
                 self.logHandler = logHandler
                 adjustOriginParams(url: url)
-                // Returned back the change of URLScheme to cueScheme
-                let cueURL = self.changeURLScheme(newScheme: AppConstant.cueScheme, forURL: url)!
-                // Was commented out to avoid Exception: This task has already been stopped, url: Optional(https://idea-cue.stagingdxp.com/games/light-show/assets/index.8c9b7e3e.js)
-//                if !urlString.contains("qrCode=true") {
-//                    cueURL = self.changeURLScheme(newScheme: AppConstant.cueScheme, forURL: url)!
-//                }
-                addToLog("*** Started new NAVIGATE process ***")
-                webView.load(URLRequest(url: cueURL))
+                if let cueURL = self.changeURLScheme(newScheme: AppConstant.cueScheme, forURL: url) {
+                    addToLog("*** Started new NAVIGATE process ***")
+                    webView.load(URLRequest(url: cueURL))
+                }
             } else {
                 throw InvalidUrlError.runtimeError("Invalid URL: \(url.absoluteString)")
             }
+        }
+    }
+    
+    public func prefetchWithWebView(mainView: UIView?, url: URL) {
+        if let cueURL = self.changeURLScheme(newScheme: AppConstant.cueScheme, forURL: url) {
+            // Create separate webView and make it visible on mainView to allow scripts to run correctly
+            let prefetchWebView = initWebView()
+            if let view = mainView {
+                view.addSubview(prefetchWebView)
+                _ = CueSDK(viewController: self, webView: prefetchWebView)
+            }
+            prefetchWebView.load(URLRequest(url: cueURL))
         }
     }
     
@@ -140,18 +156,11 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         if let url = URL(string: "\(urlString)&preload=true") {
             if UIApplication.shared.canOpenURL(url) {
                 contentLoadType = .prefetch
+                addToLog("*** Started new PREFETCH process ***")
+                IOUtils.prefetchJSONData(urlString: urlString, logHandler: logHandler)
                 self.logHandler = logHandler
                 adjustOriginParams(url: url)
-                let cueURL = self.changeURLScheme(newScheme: AppConstant.cueScheme, forURL: url)!
-                addToLog("*** Started new PREFETCH process ***")
-                // Create separate webView and make it visible on mainView to allow scripts to run correctly
-                let prefetchWebView = initWebView()
-                if let view = mainView {
-                    view.addSubview(prefetchWebView)
-                    let prefetchCueSDK = CueSDK(viewController: self, webView: prefetchWebView)
-                    print("Created prefetchCueSDK: \(prefetchCueSDK)")
-                }
-                prefetchWebView.load(URLRequest(url: cueURL))
+                prefetchWithWebView(mainView: mainView, url: url)
             } else {
                 throw InvalidUrlError.runtimeError("Invalid URL: \(url.absoluteString)")
             }
@@ -189,36 +198,39 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         // Handle WKURLSchemeTask delegate methods
         if let url = changeURLScheme(newScheme: AppConstant.httpsScheme, forURL: urlSchemeTask.request.url) {
             let urlString = url.absoluteString
-            let fileName = makeFileNameFromUrl(url: url)
+            let fileName = IOUtils.makeFileNameFromUrl(url: url)
             let shortFileName = shorten(fileName)
             print("Start loading: \(urlString)")
-            // Check condition for cached files
-            if urlString.contains(cachePattern) {
-                switch contentLoadType {
-                case .none:
-                    print("Not prefetch or navigate")
-                case .prefetch:
-                    saveToCache(url: url, task: urlSchemeTask)
-                case .navigate:
-                    if loadFromCache(url: url, task: urlSchemeTask) {
-                        addToLog("Loaded from cache: \(shortFileName)")
-                    } else {
-                        // In navigate-mode also save to cache to prepare resources for future appearence in timeline
-                        saveToCache(url: url, task: urlSchemeTask)
-                        addToLog("Loaded NOT from cache, from url: \(urlString)")
-                    }
+            switch contentLoadType {
+            case .none:
+                print("Not prefetch or navigate")
+            case .prefetch:
+                downloadFromWebSaveToCache(url: url, task: urlSchemeTask)
+            case .navigate:
+                if loadFromCache(url: url, task: urlSchemeTask) {
+                    addToLog("Loaded from cache: \(shortFileName)")
+                } else {
+                    addToLog("Loaded NOT from cache, from url: \(urlString)")
+                    downloadFromWebSaveToCache(url: url, task: urlSchemeTask)
                 }
-            } else {
-                // Usual download from web without cache
-                downloadFromWeb(url: url, task: urlSchemeTask)
             }
-            
         }
     }
 
     public func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {
         print("Stopped loading \(urlSchemeTask.request.url?.absoluteString ?? "")\n")
     }
+    
+//    public func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+//
+//        print("decidePolicyFor for")
+//        let response = navigationResponse.response as? HTTPURLResponse
+//        response?.allHeaderFields.forEach({ key, value in
+//            print("key: ", key)
+//            print("value: ", value)
+//        })
+//        decisionHandler(.allow)
+//    }
     
     public func showCache() -> String {
         var resultMessage = ""
@@ -261,23 +273,11 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         return resultMessage
     }
     
-    fileprivate func saveToCache(url: URL, task: WKURLSchemeTask) {
-        let fileName = makeFileNameFromUrl(url: url)
-        let shortFileName = shorten(fileName)
-        URLSession.shared.dataTask(with: url) { (cueData, cueResponse, error) in
-            if let data = cueData, let response = cueResponse {
-                let resultMessage = IoUtils.shared.saveMediaToFile(fileName: fileName, data:data)
-                self.addToLog("\(resultMessage): \(shortFileName)")
-                self.processTaskFinish(task, response, data)
-            }
-        }.resume()
-    }
-    
     fileprivate func loadFromCache(url: URL, task: WKURLSchemeTask) -> Bool {
-        let mimeType = url.absoluteString.mimeType()
         guard let fileUrl = fileUrlFromUrl(url: url),
               let data = try? Data(contentsOf: fileUrl) else { return false }
-       
+        
+        let mimeType = IOUtils.prepareUrlString(urlString: url.absoluteString).mimeType()
         let response = HTTPURLResponse(url: url,
                                        mimeType: mimeType,
                                        expectedContentLength: data.count, textEncodingName: nil)
@@ -285,23 +285,36 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         return true
     }
     
-    fileprivate func downloadFromWeb(url: URL, task: WKURLSchemeTask) {
-        URLSession.shared.dataTask(with: url) { (cueData, cueResponse, error) in
+    fileprivate func saveDataToCache(url: URL, data: Data?) {
+        let resultMessage = IOUtils.saveDataToCache(url: url, data: data)
+        addToLog(resultMessage)
+    }
+    
+    fileprivate func downloadFromWebSaveToCache(url: URL, task: WKURLSchemeTask) {
+        URLSession.shared.dataTask(with: url) { [self] (cueData, cueResponse, cueError) in
+            if let error = cueError {
+                self.addToLog("ERROR downloading from Web: \(error.localizedDescription)")
+            }
+            if (url.absoluteString.contains(cachePattern)) {
+                saveDataToCache(url: url, data: cueData)
+            }
             if let data = cueData, let response = cueResponse {
-                self.processTaskFinish(task, response, data)
+                processTaskFinish(task, response, data)
             }
         }.resume()
     }
     
     // Safely finishes the task, catching the possible exception
-    fileprivate func processTaskFinish(_ task: WKURLSchemeTask, _ response: URLResponse, _ data: Data) {
-        let exception = tryBlock {
-            task.didReceive(response)
-            task.didReceive(data)
-            task.didFinish()
-        }
-        if let error = exception {
-            addToLog("EXCEPTION: \(error), url: \(String(describing: response.url))")
+    fileprivate func processTaskFinish(_ webTask: WKURLSchemeTask?, _ response: URLResponse, _ data: Data) {
+        if let task = webTask {
+            let exception = tryBlock {
+                task.didReceive(response)
+                task.didReceive(data)
+                task.didFinish()
+            }
+            if let error = exception {
+                addToLog("EXCEPTION: \(error), url: \(String(describing: response.url))")
+            }
         }
     }
     
@@ -309,16 +322,10 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         cachePattern = ".\(url.rootDomain)\(AppConstant.cacheFilesPattern)"
     }
     
-    fileprivate func makeFileNameFromUrl(url: URL) -> String {
-        var fileName = url.absoluteString
-        fileName.removingRegexMatches(pattern: AppConstant.regexAllowedLetters, replaceWith: "_")
-        return fileName
-    }
-    
     fileprivate func fileUrlFromUrl(url: URL) -> URL? {
         let fileManager = FileManager.default
         if let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
-            let localFileName = makeFileNameFromUrl(url: url)
+            let localFileName = IOUtils.makeFileNameFromUrl(url: url)
             let fileURL = documentsDirectory.appendingPathComponent("\(AppConstant.cacheDirectoryName)/\(localFileName)")
             return fileURL
         } else {
@@ -327,12 +334,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
     }
     
     fileprivate func shorten(_ fileName: String) -> String {
-        if let index = fileName.range(of: "_", options: .backwards)?.upperBound {
-            let afterEqualsTo = String(fileName.suffix(from: index))
-            return afterEqualsTo
-        } else {
-            return fileName
-        }
+        return IOUtils.shorten(fileName)
     }
     
     fileprivate func addToLog(_ logLine: String) {

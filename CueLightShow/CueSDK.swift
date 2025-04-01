@@ -330,7 +330,7 @@ public class CueSDK: NSObject, WKUIDelegate {
     
     private func saveCacheFile(fileName: String, dataStr: String) {
         let data = Data(dataStr.utf8)
-        let logMessage = IoUtils.shared.saveMediaToFile(fileName: fileName, data: data)
+        let logMessage = IOUtils.saveMediaToFile(fileName: fileName, data: data)
         print(logMessage)
         if (logMessage.contains("Error")) {
             errorToJavaScript("\(logMessage), file: \(fileName)")
@@ -340,7 +340,7 @@ public class CueSDK: NSObject, WKUIDelegate {
     }
     
     private func sendCacheFileToJavascript(fileName: String) {
-        let mediaFromCache = IoUtils.shared.loadMediaFromCacheFile(fileName: fileName)
+        let mediaFromCache = IOUtils.loadMediaFromCacheFile(fileName: fileName)
         print(mediaFromCache.logMessage)
         if let data = mediaFromCache.data {
             let inputAsString = String(decoding: data, as: UTF8.self)

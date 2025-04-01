@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		521F11F62BBFDA9700356A2D /* CueSDK.swift in Sources */ = {isa = PBXBuildFile; fileRef = 521F11F52BBFDA9700356A2D /* CueSDK.swift */; };
+		52823DF82D955780007E4CB2 /* IOUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52823DF72D955780007E4CB2 /* IOUtils.swift */; };
 		52F0DE982CBD1A6E00024870 /* MimeType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F0DE972CBD1A6E00024870 /* MimeType.swift */; };
 		52F39BD22C7607A6002114DC /* ExceptionCatcher.h in Headers */ = {isa = PBXBuildFile; fileRef = 52F39BD12C7607A6002114DC /* ExceptionCatcher.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		81F5A9542A0124E00059B694 /* CueLightShow.h in Headers */ = {isa = PBXBuildFile; fileRef = 81F5A9512A0124E00059B694 /* CueLightShow.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -21,6 +22,7 @@
 
 /* Begin PBXFileReference section */
 		521F11F52BBFDA9700356A2D /* CueSDK.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CueSDK.swift; sourceTree = "<group>"; };
+		52823DF72D955780007E4CB2 /* IOUtils.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = IOUtils.swift; sourceTree = "<group>"; };
 		52F0DE972CBD1A6E00024870 /* MimeType.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MimeType.swift; sourceTree = "<group>"; };
 		52F39BD12C7607A6002114DC /* ExceptionCatcher.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ExceptionCatcher.h; sourceTree = "<group>"; };
 		81F5A94E2A0124E00059B694 /* CueLightShow.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = CueLightShow.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -63,6 +65,7 @@
 		81F5A9502A0124E00059B694 /* CueLightShow */ = {
 			isa = PBXGroup;
 			children = (
+				52823DF72D955780007E4CB2 /* IOUtils.swift */,
 				52F0DE972CBD1A6E00024870 /* MimeType.swift */,
 				52F39BD12C7607A6002114DC /* ExceptionCatcher.h */,
 				81F5A9512A0124E00059B694 /* CueLightShow.h */,
@@ -169,6 +172,7 @@
 				81F7B6132AE6D4F200719C59 /* PhotoButton.swift in Sources */,
 				81F7B61B2AE7FADD00719C59 /* CameraLink.swift in Sources */,
 				521F11F62BBFDA9700356A2D /* CueSDK.swift in Sources */,
+				52823DF82D955780007E4CB2 /* IOUtils.swift in Sources */,
 				52F0DE982CBD1A6E00024870 /* MimeType.swift in Sources */,
 				81F7B6172AE6D76500719C59 /* CameraController.swift in Sources */,
 				81F5A95F2A0125D40059B694 /* WebViewController.swift in Sources */,
