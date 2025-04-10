@@ -66,6 +66,7 @@ public class IOUtils {
                 } else {
                     resultMessage = "Added to cache"
                 }
+                resultMessage += ", size: \(data.count) "
                 // Save the downloaded file to a desired location
                 try data.write(to: fileURL, options: [.atomic])
             } catch {
@@ -105,9 +106,13 @@ public class IOUtils {
     }
     
     fileprivate static func saveToCacheFromUrl(url: URL) {
-        URLSession.shared.dataTask(with: url) { (cueData, _, _) in
-            let resultMessage = self.saveDataToCache(url: url, data: cueData)
-            addToLog(resultMessage)
+        URLSession.shared.dataTask(with: url) { (cueData, _, cueError) in
+            if let error = cueError {
+                self.addToLog("ERROR downloading by JSON: \(error.localizedDescription), url:\(url)")
+            } else {
+                let resultMessage = self.saveDataToCache(url: url, data: cueData)
+                addToLog(resultMessage)
+            }
         }.resume()
     }
     

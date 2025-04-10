@@ -9,6 +9,7 @@
 import UIKit
 import WebKit
 import UniformTypeIdentifiers
+import Network
 
 public typealias LogHandler = (_ urlString: String) -> ()
 
@@ -125,13 +126,15 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
     
     ///  Navigates to the url in embedded WKWebView-object
     public func navigateTo(urlString: String, logHandler: LogHandler? = nil) throws {
-        if let url = URL(string: urlString) {
+        let isOffline = !Reachability.isConnected()
+        let offlineParam = if isOffline { "&offline=true" } else { "" }
+        if let url = URL(string: "\(urlString)\(offlineParam)") {
             if UIApplication.shared.canOpenURL(url) {
                 contentLoadType = .navigate
                 self.logHandler = logHandler
                 adjustOriginParams(url: url)
                 if let cueURL = self.changeURLScheme(newScheme: AppConstant.cueScheme, forURL: url) {
-                    addToLog("*** Started new NAVIGATE process ***")
+                    addToLog("*** Started new NAVIGATE process, offline mode = \(isOffline) ***")
                     webView.load(URLRequest(url: cueURL))
                 }
             } else {
@@ -196,7 +199,8 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
     
     public func webView(_ webView: WKWebView, start urlSchemeTask: WKURLSchemeTask) {
         // Handle WKURLSchemeTask delegate methods
-        if let url = changeURLScheme(newScheme: AppConstant.httpsScheme, forURL: urlSchemeTask.request.url) {
+        if let cueUrl = urlSchemeTask.request.url, 
+           let url = changeURLScheme(newScheme: AppConstant.httpsScheme, forURL: cueUrl) {
             let urlString = url.absoluteString
             let fileName = IOUtils.makeFileNameFromUrl(url: url)
             let shortFileName = shorten(fileName)
@@ -205,13 +209,13 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
             case .none:
                 print("Not prefetch or navigate")
             case .prefetch:
-                downloadFromWebSaveToCache(url: url, task: urlSchemeTask)
+                downloadFromWebSaveToCache(cueUrl: cueUrl, url: url, task: urlSchemeTask)
             case .navigate:
-                if loadFromCache(url: url, task: urlSchemeTask) {
+                if loadFromCache(cueUrl: cueUrl, url: url, task: urlSchemeTask) {
                     addToLog("Loaded from cache: \(shortFileName)")
                 } else {
                     addToLog("Loaded NOT from cache, from url: \(urlString)")
-                    downloadFromWebSaveToCache(url: url, task: urlSchemeTask)
+                    downloadFromWebSaveToCache(cueUrl: cueUrl, url: url, task: urlSchemeTask)
                 }
             }
         }
@@ -273,15 +277,17 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         return resultMessage
     }
     
-    fileprivate func loadFromCache(url: URL, task: WKURLSchemeTask) -> Bool {
+    fileprivate func loadFromCache(cueUrl: URL, url: URL, task: WKURLSchemeTask) -> Bool {
         guard let fileUrl = fileUrlFromUrl(url: url),
               let data = try? Data(contentsOf: fileUrl) else { return false }
         
-        let mimeType = IOUtils.prepareUrlString(urlString: url.absoluteString).mimeType()
-        let response = HTTPURLResponse(url: url,
-                                       mimeType: mimeType,
-                                       expectedContentLength: data.count, textEncodingName: nil)
-        self.processTaskFinish(task, response, data)
+//        if !processAsPatchedTextResource(url: url, task: task, data: data) {
+            let mimeType = IOUtils.prepareUrlString(urlString: url.absoluteString).mimeType()
+            let response = HTTPURLResponse(url: cueUrl,
+                                           mimeType: mimeType,
+                                           expectedContentLength: data.count, textEncodingName: nil)
+            processTaskFinish(task, response, data)
+//        }
         return true
     }
     
@@ -290,19 +296,55 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         addToLog(resultMessage)
     }
     
-    fileprivate func downloadFromWebSaveToCache(url: URL, task: WKURLSchemeTask) {
-        URLSession.shared.dataTask(with: url) { [self] (cueData, cueResponse, cueError) in
+    fileprivate func downloadFromWebSaveToCache(cueUrl: URL, url: URL, task: WKURLSchemeTask) {
+        URLSession.shared.dataTask(with: url) { [self] (cueData, _, cueError) in
             if let error = cueError {
-                self.addToLog("ERROR downloading from Web: \(error.localizedDescription)")
-            }
-            if (url.absoluteString.contains(cachePattern)) {
-                saveDataToCache(url: url, data: cueData)
-            }
-            if let data = cueData, let response = cueResponse {
-                processTaskFinish(task, response, data)
+                self.addToLog("ERROR downloading by WebView: \(error.localizedDescription), url:\(url)")
+            } else {
+                if (url.absoluteString.contains(cachePattern)) {
+                    saveDataToCache(url: url, data: cueData)
+                }
+                if let data = cueData {
+//                    if !processAsPatchedTextResource(url: url, task: task, data: data) {
+                        let mimeType = IOUtils.prepareUrlString(urlString: url.absoluteString).mimeType()
+                        let response = HTTPURLResponse(url: cueUrl,
+                                                       mimeType: mimeType,
+                                                       expectedContentLength: data.count, textEncodingName: nil)
+                        processTaskFinish(task, response, data)
+//                    }
+                }
             }
         }.resume()
     }
+    
+//    fileprivate func processAsPatchedTextResource(url: URL, task: WKURLSchemeTask, data: Data) -> Bool {
+//        let mimeType = IOUtils.prepareUrlString(urlString: url.absoluteString).mimeType()
+//        
+//        if mimeType.contains("javascript") {
+//            if let dataString = String(data: data, encoding: .utf8),
+//               let cueUrl = changeURLScheme(newScheme: AppConstant.cueScheme, forURL: url) {
+//                //https://dev-test-sergey.developdxp.com
+//                let patchedDataString = dataString.replacingOccurrences(
+//                    of: url.host!, //"https://services.developdxp.com",
+//                    with: cueUrl.host! //"cue-data://services.developdxp.com"
+//                )
+//                if patchedDataString != dataString {
+//                    addToLog("PATCHED: \(url)")
+//                } else {
+//                    addToLog("NOT PATCHED: \(url)")
+//                }
+//                let modifiedResponse = HTTPURLResponse(
+//                    url: cueUrl,
+//                    mimeType: mimeType,
+//                    expectedContentLength: data.count, textEncodingName: nil)
+//                
+//                let modifiedData = patchedDataString.data(using: .utf8)!
+//                processTaskFinish(task, modifiedResponse, modifiedData)
+//                return true
+//            }
+//        }
+//        return false
+//    }
     
     // Safely finishes the task, catching the possible exception
     fileprivate func processTaskFinish(_ webTask: WKURLSchemeTask?, _ response: URLResponse, _ data: Data) {
@@ -313,7 +355,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
                 task.didFinish()
             }
             if let error = exception {
-                addToLog("EXCEPTION: \(error), url: \(String(describing: response.url))")
+                print("EXCEPTION: \(error), url: \(String(describing: response.url))")
             }
         }
     }
