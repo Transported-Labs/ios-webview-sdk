@@ -24,6 +24,7 @@ public class CueSDK: NSObject, WKUIDelegate {
     let permissionsServiceName = "permissions"
     let storageServiceName = "storage"
     let cameraServiceName = "camera"
+    let networkServiceName = "network"
     let onMethodName = "on"
     let offMethodName = "off"
     let checkIsOnMethodName = "isOn"
@@ -42,6 +43,7 @@ public class CueSDK: NSObject, WKUIDelegate {
     let openCameraMethodName = "openCamera"
     let openPhotoCameraMethodName = "openPhotoCamera"
     let openVideoCameraMethodName = "openVideoCamera"
+    let getStateMethodName = "getState"
     
     let testErrorMethodName = "testError"
     
@@ -51,6 +53,7 @@ public class CueSDK: NSObject, WKUIDelegate {
     var viewController: UIViewController!
     var webView: WKWebView!
     public var isTorchLocked: Bool = false
+    private var networkStatus = ""
     
     lazy var cameraController: CameraController = {
         let camController = CameraController(cueSDK: self)
@@ -552,8 +555,14 @@ extension CueSDK: WKScriptMessageHandler{
                         openCamera(cameraLayout: CameraLayout.videoOnly)
                     default: break
                     }
-                } else {
-                    errorToJavaScript("Only services '\(torchServiceName)', '\(vibrationServiceName)', '\(permissionsServiceName)' are supported")
+                } else if serviceName == networkServiceName {
+                    switch methodName {
+                    case getStateMethodName:
+                            checkNetworkState()
+                    default: break
+                    }
+                }  else {
+                    errorToJavaScript("Only services '\(torchServiceName)', '\(vibrationServiceName)', '\(permissionsServiceName)', '\(storageServiceName)', '\(cameraServiceName)', '\(networkServiceName)' are supported")
                 }
             }
         } else {
@@ -609,5 +618,36 @@ extension CueSDK: WKScriptMessageHandler{
         } else {
             print("curRequestId is nil")
         }
+    }
+    
+    private func notifyJavaScript(channel:String?, result: Any?, errorMessage: String = "") {
+        if channel != nil {
+            var params: ParamsArray = [channel]
+            if result != nil {
+                params.append(result)
+            } else if errorMessage != "" {
+                params.append(nil)
+                params.append(errorMessage)
+            }
+            if let data = try? JSONSerialization.data(withJSONObject: params, options: [.prettyPrinted]),
+                let paramData = String(data: data, encoding: .utf8) {
+                let js2:String = "cueSDKNotification(JSON.stringify(\(paramData)))"
+                print("Sent Notification to Javascript: \(js2)")
+                self.webView.evaluateJavaScript(js2, completionHandler: { (result, error) -> Void in
+                    print(error?.localizedDescription ?? "Sent successfully, no errors")
+                })
+            }
+        } else {
+            print("channel is nil")
+        }
+    }
+    
+    func notifyInternetConnection(param: String) {
+        networkStatus = param
+        notifyJavaScript(channel: "network-state", result: networkStatus)
+    }
+
+    private func  checkNetworkState() {
+        sendToJavaScript(result: networkStatus)
     }
 }

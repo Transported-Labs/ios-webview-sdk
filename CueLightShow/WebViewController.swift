@@ -32,10 +32,19 @@ struct AppConstant {
 
 public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSchemeHandler {
 
-    private var logHandler: LogHandler?
+    public var logHandler: LogHandler?
     private var contentLoadType: ContentLoadType = .none
     private var cachePattern = "" // will be set up in runtime
     private var savedBrightness: CGFloat = CGFloat(0.0)
+    private let networkMonitor = NWPathMonitor()
+    private var networkStatus: String = "" {
+        didSet {
+            if (networkStatus != oldValue) {
+                cueSDK.notifyInternetConnection(param: networkStatus)
+                addToLog("Network connection is \(networkStatus.uppercased())")
+            }
+        }
+    }
 
     public var isExitButtonHidden: Bool {
         get {
@@ -85,6 +94,24 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         return true
     }
     
+    private func initNetworkMonitor() {
+        networkMonitor.pathUpdateHandler = { path in
+            let isConnected = path.status == .satisfied
+            self.networkStatus = if isConnected {"on"} else {"off"}
+        }
+        networkMonitor.start(queue: DispatchQueue.main)
+    }
+    
+    override init(nibName nibNameOrNil: String?, bundle nibBundleOrNil: Bundle?)   {
+        super.init(nibName: nibNameOrNil, bundle: nibBundleOrNil)
+        initNetworkMonitor()
+    }
+
+    required init?(coder aDecoder: NSCoder) {
+        super.init(coder: aDecoder)
+        initNetworkMonitor()
+    }
+
     public override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -125,13 +152,12 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
     }
     
     ///  Navigates to the url in embedded WKWebView-object
-    public func navigateTo(urlString: String, logHandler: LogHandler? = nil) throws {
+    public func navigateTo(urlString: String) throws {
         let isOffline = !Reachability.isConnected()
         let offlineParam = if isOffline { "&offline=true" } else { "" }
         if let url = URL(string: "\(urlString)\(offlineParam)") {
             if UIApplication.shared.canOpenURL(url) {
                 contentLoadType = .navigate
-                self.logHandler = logHandler
                 adjustOriginParams(url: url)
                 if let cueURL = self.changeURLScheme(newScheme: AppConstant.cueScheme, forURL: url) {
                     addToLog("*** Started new NAVIGATE process, offline mode = \(isOffline) ***")
@@ -155,13 +181,12 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         }
     }
     
-    public func prefetch(urlString: String, mainView: UIView? = nil, logHandler: LogHandler? = nil) throws {
+    public func prefetch(urlString: String, mainView: UIView? = nil) throws {
         if let url = URL(string: "\(urlString)&preload=true") {
             if UIApplication.shared.canOpenURL(url) {
                 contentLoadType = .prefetch
                 addToLog("*** Started new PREFETCH process ***")
                 IOUtils.prefetchJSONData(urlString: urlString, logHandler: logHandler)
-                self.logHandler = logHandler
                 adjustOriginParams(url: url)
                 prefetchWithWebView(mainView: mainView, url: url)
             } else {
