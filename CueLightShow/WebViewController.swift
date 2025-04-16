@@ -32,7 +32,8 @@ struct AppConstant {
 
 public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSchemeHandler {
 
-    public var logHandler: LogHandler?
+    private var logHandler: LogHandler?
+    private var mainViewController: UIViewController?
     private var contentLoadType: ContentLoadType = .none
     private var cachePattern = "" // will be set up in runtime
     private var savedBrightness: CGFloat = CGFloat(0.0)
@@ -67,9 +68,9 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         let wv = WKWebView(frame: .zero, configuration: webConfiguration)
         wv.translatesAutoresizingMaskIntoConstraints = false
         wv.navigationDelegate = self
-//        if #available(iOS 16.4, *) {
-//            wv.isInspectable = true
-//        }
+        if #available(iOS 16.4, *) {
+            wv.isInspectable = true
+        }
         return wv
     }
     
@@ -78,7 +79,8 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
     }()
 
     public lazy var cueSDK: CueSDK = {
-        return CueSDK(viewController: self, webView: self.webView)
+        let controller: UIViewController = mainViewController ?? self
+        return CueSDK(viewController: controller, webView: self.webView)
     }()
 
     private lazy var exitButton: UIButton = {
@@ -102,16 +104,17 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         networkMonitor.start(queue: DispatchQueue.main)
     }
     
-    override init(nibName nibNameOrNil: String?, bundle nibBundleOrNil: Bundle?)   {
-        super.init(nibName: nibNameOrNil, bundle: nibBundleOrNil)
+    public init(logHandler: LogHandler? = nil, mainViewController: UIViewController? = nil) {
+        super.init(nibName: nil, bundle: nil)
+        self.logHandler = logHandler
+        self.mainViewController = mainViewController
         initNetworkMonitor()
     }
-
-    required init?(coder aDecoder: NSCoder) {
-        super.init(coder: aDecoder)
-        initNetworkMonitor()
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
-
+    
     public override func viewDidLoad() {
         super.viewDidLoad()
         
