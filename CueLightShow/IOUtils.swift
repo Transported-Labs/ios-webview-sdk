@@ -175,19 +175,19 @@ public class IOUtils {
         return "Data is NULL for url: \(url.absoluteString)"
     }
     
-    public static func shorten(_ fileName: String) -> String {
-        if let range = fileName.range(of: "_", options: .backwards) {
-            let shortName = String(fileName.suffix(from: range.upperBound))
-            let prefixName = String(fileName[fileName.startIndex..<range.lowerBound])
-            if let oneLevelUpRange = prefixName.range(of: "_", options: .backwards) {
-                let oneLevelUp = String(fileName.suffix(from: oneLevelUpRange.upperBound))
-                return oneLevelUp.replacingOccurrences(of: "_", with: "/")
-            } else {
-                return shortName
-            }
-        } else {
-            return fileName
+    fileprivate static func getLastNElements(from path: String, delimiter: Character, count n: Int) -> String {
+        let components = path.split(separator: delimiter)
+        
+        guard n > 0, n <= components.count else {
+            return path // Return the original string if the input is invalid
         }
+        
+        let lastNElements = components.suffix(n).joined(separator: "/")
+        return lastNElements
+    }
+    
+    public static func shorten(_ fileName: String) -> String {
+        return getLastNElements(from: fileName, delimiter: "_", count: 2)
     }
     
     fileprivate static func addToLog(_ logLine: String) {
