@@ -7,11 +7,58 @@
 
 import Foundation
 
+public typealias LogHandler = (_ urlString: String) -> ()
+public typealias PrefetchCompletionListener = () -> ()
+
 public class IOUtils {
     
     private static var logHandler: LogHandler?
+    private static let masterGroup = DispatchGroup()
     
-    public static func prefetchJSONData(urlString: String, logHandler: LogHandler? = nil) {
+    fileprivate static func fetchLinks(from jsonURL: String, completion: @escaping ([String]) -> Void) {
+        guard let url = URL(string: jsonURL) else {
+            print("Invalid JSON URL: \(jsonURL)")
+            completion([])
+            return
+        }
+        
+        URLSession.shared.dataTask(with: url) { data, response, error in
+            guard let data = data, error == nil else {
+                print("Error fetching JSON: \(error?.localizedDescription ?? "Unknown error")")
+                completion([])
+                return
+            }
+            do {
+                let urls = try JSONDecoder().decode([String].self, from: data)
+                completion(urls)
+            } catch {
+                print("Error decoding JSON: \(error.localizedDescription)")
+                completion([])
+            }
+        }.resume()
+    }
+
+    fileprivate static func downloadFiles(path: String, from links: [String]) {
+        for link in links {
+            if let url = URL(string: "\(path)/\(link)") {
+                masterGroup.enter() // Enter the master group
+                let task = URLSession.shared.dataTask(with: url) { cueData, _, cueError in
+                    defer { masterGroup.leave() } // Leave the group when the task is done
+                    
+                    if let error = cueError {
+                        self.addToLog("ERROR downloading by JSON: \(error.localizedDescription), url:\(url)")
+                    } else {
+                        let resultMessage = self.saveDataToCache(url: url, data: cueData, isOverwrite: true)
+                        addToLog("Saved from JSON: \(resultMessage)")
+                    }
+                }
+                task.resume()
+            }
+        }
+    }
+    
+    public static func prefetchJSONData(urlString: String, logHandler: LogHandler? = nil,
+                                        completion: @escaping PrefetchCompletionListener) {
         if let url = URL(string: urlString) {
             self.logHandler = logHandler
             // Load files listed in JSONs for platform and for game
@@ -20,9 +67,27 @@ public class IOUtils {
                 let host = urlObj.host ?? ""
                 let platformIndexUrl = "\(scheme)://\(host)/\(AppConstant.indexFileName)"
                 let gameIndexUrl = "\(scheme)://\(host)/\(AppConstant.gameAssetsPath)/\(AppConstant.indexFileName)"
-                Task {
-                    await makeCacheForIndex(urlString: platformIndexUrl)
-                    await makeCacheForIndex(urlString: gameIndexUrl)
+                
+                let remoteJSONUrls = [platformIndexUrl, gameIndexUrl]
+                // Load URLs from each remote JSON file and start downloading
+                for jsonUrl in remoteJSONUrls {
+                    masterGroup.enter()
+                    fetchLinks(from: jsonUrl) { links in
+                        var pathToIndex = ""
+                        if let range = urlString.range(of: "/", options: .backwards) {
+                            pathToIndex = String(urlString[urlString.startIndex..<range.lowerBound])
+                        }
+                        downloadFiles(path: pathToIndex, from: links)
+                        masterGroup.leave()
+                    }
+                }
+
+                // Notify when all downloads are complete
+                masterGroup.notify(queue: .main) {
+                    addToLog("All downloads from all JSON groups are complete")
+                    DispatchQueue.main.async {
+                        completion()
+                    }
                 }
             }
         }
@@ -47,7 +112,7 @@ public class IOUtils {
         }
     }
     
-    public static func saveMediaToFile(fileName: String, data: Data) -> String {
+    public static func saveMediaToFile(fileName: String, data: Data, isOverwrite: Bool) -> String {
         var resultMessage: String = ""
         let fileManager = FileManager.default
         // Get the Document Directory URL
@@ -61,8 +126,13 @@ public class IOUtils {
                 let fileURL = cacheDirectory.appendingPathComponent(fileName)
                 // Remove previous possible file version
                 if fileManager.fileExists(atPath: fileURL.path){
-                    try fileManager.removeItem(at: fileURL)
-                    resultMessage = "Overwritten in cache"
+                    if isOverwrite {
+                        try fileManager.removeItem(at: fileURL)
+                        resultMessage = "Overwritten in cache"
+                    } else {
+                        resultMessage = "Already exists in cache"
+                        return resultMessage
+                    }
                 } else {
                     resultMessage = "Added to cache"
                 }
@@ -96,43 +166,13 @@ public class IOUtils {
         return fileName
     }
     
-    public static func saveDataToCache(url: URL, data: Data?) -> String {
+    public static func saveDataToCache(url: URL, data: Data?, isOverwrite: Bool) -> String {
         if let media = data {
             let fileName = makeFileNameFromUrl(url: url)
-            let resultMessage = saveMediaToFile(fileName: fileName, data: media)
+            let resultMessage = saveMediaToFile(fileName: fileName, data: media, isOverwrite: isOverwrite)
             return "\(resultMessage): \(shorten(fileName))"
         }
         return "Data is NULL for url: \(url.absoluteString)"
-    }
-    
-    fileprivate static func saveToCacheFromUrl(url: URL) {
-        URLSession.shared.dataTask(with: url) { (cueData, _, cueError) in
-            if let error = cueError {
-                self.addToLog("ERROR downloading by JSON: \(error.localizedDescription), url:\(url)")
-            } else {
-                let resultMessage = self.saveDataToCache(url: url, data: cueData)
-                addToLog(resultMessage)
-            }
-        }.resume()
-    }
-    
-    fileprivate static func makeCacheForIndex(urlString: String) async {
-        if let url = URL(string: urlString) {
-            do {
-                var pathToIndex = ""
-                if let range = urlString.range(of: "/", options: .backwards) {
-                    pathToIndex = String(urlString[urlString.startIndex..<range.lowerBound])
-                }
-                let links: [String] = try await URLSession.shared.decode([String].self, from: url)
-                for link in links {
-                    if let absoluteUrl = URL(string: "\(pathToIndex)/\(link)") {
-                        saveToCacheFromUrl(url: absoluteUrl)
-                    }
-                }
-            }  catch {
-                addToLog("Error loading index: \(error)")
-            }
-        }
     }
     
     public static func shorten(_ fileName: String) -> String {

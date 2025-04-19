@@ -333,8 +333,8 @@ public class CueSDK: NSObject, WKUIDelegate {
     
     private func saveCacheFile(fileName: String, dataStr: String) {
         let data = Data(dataStr.utf8)
-        let logMessage = IOUtils.saveMediaToFile(fileName: fileName, data: data)
-        print(logMessage)
+        let logMessage = IOUtils.saveMediaToFile(fileName: fileName, data: data, isOverwrite: true)
+        print("CueSDK saveCacheFile: \(fileName), \(logMessage)")
         if (logMessage.contains("Error")) {
             errorToJavaScript("\(logMessage), file: \(fileName)")
         } else {
