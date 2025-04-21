@@ -64,6 +64,7 @@ class CameraController: UIViewController {
         
         cameraLink.setup { [self] (error) in
             if error != nil {
+                print("CAMERA Error: \(String(describing: error?.localizedDescription))")
                 showToast(message: "Camera cannot be prepared, try again later")
             } else {
                 do {
@@ -71,6 +72,7 @@ class CameraController: UIViewController {
                         bottomBar.setButtonsHidden(isHidden: false)
                     }
                 } catch {
+                    print("CAMERA Error: sessionIsMissing")
                     showToast(message: "Preview cannot be prepared, try again later")
                 }
             }
@@ -161,13 +163,13 @@ extension CameraController: BottomBarDelegate {
         if isVideoRecording {
             isVideoRecording = false
             cameraLink.stopRecording { (error) in
-                self.showToast(message: "Video recording error on stop \(String(describing: error))")
+                print("Video recording error on stop \(String(describing: error))")
             }
         } else {
             isVideoRecording = true
             cameraLink.recordVideo { (url, error) in
                 guard let url = url else {
-                    self.showToast(message: "Video recording error on start \(String(describing: error))")
+                    print("Video recording error on start \(String(describing: error))")
                     return
                 }
                 UISaveVideoAtPathToSavedPhotosAlbum(url.path, self, #selector(self.video(_:didFinishSavingWithError:contextInfo:)), nil)

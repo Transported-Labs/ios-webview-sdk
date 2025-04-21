@@ -171,6 +171,16 @@ extension CameraLink {
             
         }
         
+        func addInterruptionObserver() {
+            // Add observer for session interruption
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleSessionInterruption(_:)),
+                name: .AVCaptureSessionWasInterrupted,
+                object: captureSession
+            )
+        }
+        
         sessionQueue.async {
             do {
                 createCaptureSession()
@@ -178,6 +188,7 @@ extension CameraLink {
                 try configureDeviceInputs()
                 try configurePhotoOutput()
                 try configureVideoOutput()
+                addInterruptionObserver()
                 self.startSession()
             } catch {
                 DispatchQueue.main.async {
@@ -188,6 +199,19 @@ extension CameraLink {
             
             DispatchQueue.main.async {
                 handler(nil)
+            }
+        }
+    }
+    
+    @objc func handleSessionInterruption(_ notification: Notification) {
+        print("Attempting to restart the session...")
+        DispatchQueue.global(qos: .background).async {
+            self.captureSession?.stopRunning()
+            Thread.sleep(forTimeInterval: 0.5) // Small delay
+            self.captureSession?.startRunning()
+            
+            DispatchQueue.main.async {
+                print("Session restarted after interruption")
             }
         }
     }
@@ -302,6 +326,13 @@ extension CameraLink {
                 if device.isTorchModeSupported(mode) {
                     device.torchMode = mode
                 }
+//                if device.isFocusModeSupported(.locked) {
+//                    device.focusMode = .locked
+//                } else {
+//                    print("Focus mode 'locked' is not supported on this device.")
+//                }
+//                device.exposureMode = .locked
+//                device.isSubjectAreaChangeMonitoringEnabled = false
                 device.unlockForConfiguration()
             } catch {
                 print("Torch could not be used, error: \(error)")
