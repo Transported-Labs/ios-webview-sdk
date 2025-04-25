@@ -40,8 +40,7 @@ class CameraController: UIViewController {
     private var cueSDK: CueSDK!
     private var bottomBar: BottomBar!
     private lazy var cameraLink = CameraLink()
-    private var isVideoRecording: Bool = false
-
+    
     init(cueSDK: CueSDK) {
         super.init(nibName: nil, bundle: nil)
         self.cueSDK = cueSDK
@@ -62,6 +61,13 @@ class CameraController: UIViewController {
         cueSDK.isTorchLocked = true
         cameraLink.turnTorchOff()
         
+        // Set the custom session interruption handler
+        cameraLink.onSessionInterrupted = { [self] message in
+            print("Capture Session Interrupted: \(message)")
+            if bottomBar.cameraLayout != .photoOnly {
+                bottomBar.resetVideoRecordingStatus()
+            }
+        }
         cameraLink.setup { [self] (error) in
             if error != nil {
                 print("CAMERA Error: \(String(describing: error?.localizedDescription))")
@@ -73,7 +79,7 @@ class CameraController: UIViewController {
                     }
                 } catch {
                     print("CAMERA Error: sessionIsMissing")
-                    showToast(message: "Preview cannot be prepared, try again later")
+//                    showToast(message: "Preview cannot be prepared, try again later")
                 }
             }
             cueSDK.isTorchLocked = false
@@ -159,16 +165,16 @@ extension CameraController: BottomBarDelegate {
         }
     }
     
-    func videoButtonPressed() {
-        if isVideoRecording {
-            isVideoRecording = false
+    func videoButtonPressed(isRecording: Bool) {
+        if !isRecording {
             cameraLink.stopRecording { (error) in
                 print("Video recording error on stop \(String(describing: error))")
             }
         } else {
-            isVideoRecording = true
             cameraLink.recordVideo { (url, error) in
                 guard let url = url else {
+                    // Reset video recording buttons
+                    self.bottomBar.resetVideoRecordingStatus()
                     print("Video recording error on start \(String(describing: error))")
                     return
                 }

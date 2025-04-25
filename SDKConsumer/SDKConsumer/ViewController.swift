@@ -43,7 +43,7 @@ class ViewController: UIViewController {
             showToast("No 'Version' attribute found")
             return
         }
-        let url = URL(string: "https://dev-dxp.azurewebsites.net/api/light-show/get-version-url?version=\(appVersion)")!
+        let url = URL(string: "https://services.developdxp.com/v1/light-show/api/get-version-url?version=\(appVersion)")!
         print("URL to read address: \(url.absoluteString)")
         let task = session.dataTask(with: url) { data, response, error in
             if error != nil {

@@ -34,6 +34,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
     private var mainViewController: UIViewController?
     private var contentLoadType: ContentLoadType = .none
     private var cachePattern = "" // will be set up in runtime
+    private let ignorePattern = "https://services"
     private var savedBrightness: CGFloat = CGFloat(0.0)
     private let networkMonitor = NWPathMonitor()
     private var networkStatus: String = "" {
@@ -185,13 +186,17 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
     public func prefetch(urlString: String, mainView: UIView? = nil) throws {
         if let url = URL(string: "\(urlString)&preload=true") {
             if UIApplication.shared.canOpenURL(url) {
-                contentLoadType = .prefetch
-                addToLog("*** Started new PREFETCH process ***")
-                IOUtils.prefetchJSONData(urlString: urlString, logHandler: logHandler) {
-                    self.addToLog("prefetchJSONData is finished")
+                if (networkStatus == "on") {
+                    contentLoadType = .prefetch
+                    addToLog("*** Started new PREFETCH process ***")
+                    IOUtils.prefetchJSONData(urlString: urlString, logHandler: logHandler) {
+                        self.addToLog("prefetchJSONData is finished")
+                    }
+                    adjustOriginParams(url: url)
+                    prefetchWithWebView(mainView: mainView, url: url)
+                } else {
+                    addToLog("*** Skipped PREFETCH for OFFLINE mode ***")
                 }
-                adjustOriginParams(url: url)
-                prefetchWithWebView(mainView: mainView, url: url)
             } else {
                 throw InvalidUrlError.runtimeError("Invalid URL: \(url.absoluteString)")
             }
@@ -329,7 +334,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
             if let error = cueError {
                 self.addToLog("ERROR downloading by WebView: \(error.localizedDescription), url:\(url)")
             } else {
-                if (url.absoluteString.contains(cachePattern)) {
+                if (url.absoluteString.contains(cachePattern)) && !(url.absoluteString.contains(ignorePattern)) {
                     saveDataToCache(url: url, data: cueData)
                 }
                 if let data = cueData {

@@ -120,18 +120,25 @@ public class CueSDK: NSObject, WKUIDelegate {
     }
 
     private func bestCamera(for position: AVCaptureDevice.Position) -> AVCaptureDevice? {
-        var deviceTypes: [AVCaptureDevice.DeviceType] = [.builtInDualCamera, .builtInWideAngleCamera]
-        if position == .back {
-            if #available(iOS 11.1, *) {
-                deviceTypes.insert(.builtInTrueDepthCamera, at: 0)
-            }
+//        var deviceTypes: [AVCaptureDevice.DeviceType] = [.builtInDualCamera, .builtInWideAngleCamera]
+//        if position == .back {
+//            if #available(iOS 11.1, *) {
+//                deviceTypes.insert(.builtInTrueDepthCamera, at: 0)
+//            }
+//        }
+//        let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: deviceTypes, mediaType: .video, position: .unspecified)
+//        let devices = discoverySession.devices
+//
+//        guard !devices.isEmpty else { return nil }
+//
+//        return devices.first { $0.position == position }
+        if let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position),
+              device.hasTorch {
+            return device
+        }  else {
+            print("Torch is not available on this device")
+            return nil
         }
-        let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: deviceTypes, mediaType: .video, position: .unspecified)
-        let devices = discoverySession.devices
-
-        guard !devices.isEmpty else { return nil }
-
-        return devices.first { $0.position == position }
     }
     
     fileprivate func adjustedIntenseLevel(_ level: Float) -> Float {

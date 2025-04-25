@@ -53,7 +53,7 @@ class VideoButton: UIButton {
     }
     
     func setRecording(_ recording: Bool) {
-        if recording {
+        if !recording {
             UIView.animate(withDuration: 0.3, delay: 0.3) {
                 self.innerView.layer.cornerRadius = 30
                 self.innerViewWidthAnchor?.constant = 60
@@ -61,9 +61,9 @@ class VideoButton: UIButton {
             }
         } else {
             UIView.animate(withDuration: 0.2, delay: 0.0) {
-                self.innerView.layer.cornerRadius = 15
-                self.innerViewWidthAnchor?.constant = 30
-                self.innerViewHeightAnchor?.constant = 30
+                self.innerView.layer.cornerRadius = 5
+                self.innerViewWidthAnchor?.constant = 25
+                self.innerViewHeightAnchor?.constant = 25
             }
         }
     }

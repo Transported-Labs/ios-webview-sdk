@@ -51,6 +51,8 @@ class CameraLink: NSObject {
     var outputType: OutputType?
     private let sessionQueue = DispatchQueue(label: "com.cueaudio.live.sessionQueue")
     private var isSessionRunning = false
+    private var isSessionInterrupted = false
+    var onSessionInterrupted: ((String) -> Void)?
 }
 
 extension CameraLink {
@@ -204,7 +206,12 @@ extension CameraLink {
     }
     
     @objc func handleSessionInterruption(_ notification: Notification) {
-        print("Attempting to restart the session...")
+        isSessionInterrupted = true
+        let userInfo = notification.userInfo
+        let reasonValue = userInfo?[AVCaptureSessionInterruptionReasonKey] as? NSNumber ?? NSNumber(value: -1)
+        let eventMessage = "Attempting to restart the session due to reason: \(reasonValue)"
+        // Call the custom handler if it is set
+        onSessionInterrupted?(eventMessage)
         DispatchQueue.global(qos: .background).async {
             self.captureSession?.stopRunning()
             Thread.sleep(forTimeInterval: 0.5) // Small delay
@@ -292,12 +299,53 @@ extension CameraLink {
         }
     }
     
+    fileprivate func addAudioInput(to captureSession: AVCaptureSession, audioInput: AVCaptureDeviceInput?) {
+        guard let audioInput = audioInput else {
+            print("Audio input is nil")
+            return
+        }
+        guard !isSessionInterrupted else {
+            print("Don't add audio input if captureSession was interrupted")
+            return
+        }
+
+        // Check if the audio input is already added to the session
+        if !captureSession.inputs.contains(where: { ($0 as? AVCaptureDeviceInput)?.device == audioInput.device }) {
+            if captureSession.canAddInput(audioInput) {
+                captureSession.addInput(audioInput)
+                print("Audio input successfully added")
+            } else {
+                print("Failed to add audio input to the capture session")
+            }
+        } else {
+            print("Audio input is already added to the capture session")
+        }
+    }
+    
+    fileprivate func removeAudioInput(from captureSession: AVCaptureSession, audioInput: AVCaptureDeviceInput?) {
+        guard let audioInput = audioInput else {
+            print("Audio input is nil")
+            return
+        }
+
+        // Check if the audio input is already added to the session
+        if captureSession.inputs.contains(where: { ($0 as? AVCaptureDeviceInput)?.device == audioInput.device }) {
+            captureSession.beginConfiguration()
+            captureSession.removeInput(audioInput)
+            captureSession.commitConfiguration()
+            print("Audio input successfully removed from the capture session")
+        } else {
+            print("Audio input is not present in the capture session")
+        }
+    }
+
+
     func recordVideo(completion: @escaping (URL?, Error?)-> Void) {
         guard let captureSession = self.captureSession else {
             completion(nil, CameraError.sessionIsMissing)
             return
         }
-        
+        addAudioInput(to: captureSession, audioInput: self.audioInput)
         sessionQueue.async { [self] in
             if (!captureSession.isRunning) {
                 startSession()
@@ -389,8 +437,13 @@ extension CameraLink: AVCaptureFileOutputRecordingDelegate {
     func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
         if error == nil {
             self.videoRecordCompletionBlock?(outputFileURL, nil)
+            print("Recording finished successfully. File saved at: \(outputFileURL)")
         } else {
             self.videoRecordCompletionBlock?(nil, error)
+            print("Recording failed with error: \(String(describing: error))")
+        }
+        if let captureSession = self.captureSession {
+            removeAudioInput(from: captureSession, audioInput: self.audioInput)
         }
     }
 }

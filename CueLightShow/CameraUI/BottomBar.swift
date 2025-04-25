@@ -9,7 +9,7 @@ import UIKit
 
 protocol BottomBarDelegate: AnyObject {
     func photoButtonPressed()
-    func videoButtonPressed()
+    func videoButtonPressed(isRecording: Bool)
     func exitButtonPressed()
 }
 
@@ -110,15 +110,22 @@ class BottomBar: UIView {
         delegate?.photoButtonPressed()
     }
     
-    @objc private func videoButtonPressed(_ sender: UIButton?) {
-        if let videoButton = sender as? VideoButton {
-            videoButton.isRecording = !videoButton.isRecording
-            if cameraLayout == .both {
-                photoButton.isHidden  = videoButton.isRecording
-            }
-            exitButton.isHidden  = videoButton.isRecording
+    fileprivate func adjustUIVideo() {
+        if cameraLayout == .both {
+            photoButton.isHidden  = videoButton.isRecording
         }
-        delegate?.videoButtonPressed()
+        exitButton.isHidden  = videoButton.isRecording
+    }
+    
+    func resetVideoRecordingStatus() {
+        videoButton.isRecording = false
+        adjustUIVideo()
+    }
+    
+    @objc private func videoButtonPressed(_ sender: UIButton?) {
+        videoButton.isRecording = !videoButton.isRecording
+        adjustUIVideo()
+        delegate?.videoButtonPressed(isRecording: videoButton.isRecording)
     }
 
     @objc private func exitButtonPressed(_ sender: UIButton?) {
