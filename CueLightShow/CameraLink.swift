@@ -76,6 +76,7 @@ extension CameraLink {
         
         func createCaptureSession() {
             self.captureSession = AVCaptureSession()
+            self.captureSession?.automaticallyConfiguresApplicationAudioSession = false
             NotificationCenter.default.addObserver(self,
                                                    selector: #selector(sessionRuntimeErrorOccurred(notification:)),
                                                    name: .AVCaptureSessionRuntimeError,
@@ -132,11 +133,6 @@ extension CameraLink {
             
             if let audioDevice = self.audioCaptureDevice {
                 self.audioInput = try AVCaptureDeviceInput(device: audioDevice)
-                if captureSession.canAddInput(self.audioInput!) {
-                    captureSession.addInput(self.audioInput!)
-                } else {
-                    throw CameraError.inputIsInvalid
-                }
             }
         }
         

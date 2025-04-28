@@ -59,9 +59,11 @@ class ViewController: UIViewController {
                 return
             }
             if let target = String(data: data!, encoding: .utf8) {
-                print("URL to navgate: \(target)")
+                // Remove extra quotes
+                let url = target.replacingOccurrences(of: "\"", with: "")
+                print("URL to navgate: \(url)")
                 DispatchQueue.main.async {
-                    self.navigateToURL(urlString: target)
+                    self.navigateToURL(urlString: url)
                 }
             } else {
                 self.showToast("Null URL received")

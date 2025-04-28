@@ -65,19 +65,16 @@ public class IOUtils {
             if let urlObj = NSURLComponents(url: url, resolvingAgainstBaseURL: true) {
                 let scheme = urlObj.scheme ?? "https"
                 let host = urlObj.host ?? ""
-                let platformIndexUrl = "\(scheme)://\(host)/\(AppConstant.indexFileName)"
-                let gameIndexUrl = "\(scheme)://\(host)/\(AppConstant.gameAssetsPath)/\(AppConstant.indexFileName)"
+                let platformUrl = "\(scheme)://\(host)"
+                let gameUrl = "\(scheme)://\(host)/\(AppConstant.gameAssetsPath)"
                 
-                let remoteJSONUrls = [platformIndexUrl, gameIndexUrl]
+                let remoteJSONUrls = [platformUrl, gameUrl]
                 // Load URLs from each remote JSON file and start downloading
                 for jsonUrl in remoteJSONUrls {
                     masterGroup.enter()
-                    fetchLinks(from: jsonUrl) { links in
-                        var pathToIndex = ""
-                        if let range = urlString.range(of: "/", options: .backwards) {
-                            pathToIndex = String(urlString[urlString.startIndex..<range.lowerBound])
-                        }
-                        downloadFiles(path: pathToIndex, from: links)
+                    let indexUrl = "\(jsonUrl)/\(AppConstant.indexFileName)"
+                    fetchLinks(from: indexUrl) { links in
+                        downloadFiles(path: jsonUrl, from: links)
                         masterGroup.leave()
                     }
                 }

@@ -21,7 +21,6 @@ struct AppConstant {
     static let cueScheme = "cue-data"
     static let httpsScheme = "https"
     static let cacheDirectoryName = "cache"
-    static let cacheFilesPattern = "/files/"
     static let regexAllowedLetters = "[^0-9a-zA-Z.\\-]"
     static let indexHtml = "index.html"
     static let indexFileName = "index.json"
@@ -33,7 +32,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
     private var logHandler: LogHandler?
     private var mainViewController: UIViewController?
     private var contentLoadType: ContentLoadType = .none
-    private var cachePattern = "" // will be set up in runtime
+    private var cachePattern = "/files/"
     private let ignorePattern = "https://services"
     private var savedBrightness: CGFloat = CGFloat(0.0)
     private let networkMonitor = NWPathMonitor()
@@ -160,7 +159,6 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         if let url = URL(string: "\(urlString)\(offlineParam)") {
             if UIApplication.shared.canOpenURL(url) {
                 contentLoadType = .navigate
-                adjustOriginParams(url: url)
                 if let cueURL = self.changeURLScheme(newScheme: AppConstant.cueScheme, forURL: url) {
                     addToLog("*** Started new NAVIGATE process, offline mode = \(isOffline) ***")
                     webView.load(URLRequest(url: cueURL))
@@ -192,7 +190,6 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
                     IOUtils.prefetchJSONData(urlString: urlString, logHandler: logHandler) {
                         self.addToLog("prefetchJSONData is finished")
                     }
-                    adjustOriginParams(url: url)
                     prefetchWithWebView(mainView: mainView, url: url)
                 } else {
                     addToLog("*** Skipped PREFETCH for OFFLINE mode ***")
@@ -325,7 +322,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
     }
     
     fileprivate func saveDataToCache(url: URL, data: Data?) {
-        let resultMessage = IOUtils.saveDataToCache(url: url, data: data, isOverwrite: false)
+        let resultMessage = IOUtils.saveDataToCache(url: url, data: data, isOverwrite: true)
         addToLog(resultMessage)
     }
     
@@ -391,10 +388,6 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
                 print("EXCEPTION: \(error), url: \(String(describing: response.url))")
             }
         }
-    }
-    
-    fileprivate func  adjustOriginParams(url: URL) {
-        cachePattern = ".\(url.rootDomain)\(AppConstant.cacheFilesPattern)"
     }
     
     fileprivate func fileUrlFromUrl(url: URL) -> URL? {

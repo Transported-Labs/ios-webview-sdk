@@ -70,16 +70,16 @@ class CameraController: UIViewController {
         }
         cameraLink.setup { [self] (error) in
             if error != nil {
-                print("CAMERA Error: \(String(describing: error?.localizedDescription))")
                 showToast(message: "Camera cannot be prepared, try again later")
+                print("Camera SETUP Error: \(String(describing: error?.localizedDescription))")
             } else {
                 do {
                     try cameraLink.displayPreview(previewArea) { [self] in
                         bottomBar.setButtonsHidden(isHidden: false)
                     }
                 } catch {
-                    print("CAMERA Error: sessionIsMissing")
-//                    showToast(message: "Preview cannot be prepared, try again later")
+                    showToast(message: "Preview cannot be prepared, try again later")
+                    print("Camera PREVIEW Error: sessionIsMissing")
                 }
             }
             cueSDK.isTorchLocked = false
@@ -157,7 +157,8 @@ extension CameraController: BottomBarDelegate {
     func photoButtonPressed() {
         cameraLink.captureImage { (image, error) in
             guard let image = image else {
-                self.showToast(message: "Photo capture error \(String(describing: error))")
+                self.showToast(message: "Photo capture error, try again later")
+                print("Photo capture error \(String(describing: error))")
                 return
             }
             self.previewArea.image = image
@@ -168,6 +169,7 @@ extension CameraController: BottomBarDelegate {
     func videoButtonPressed(isRecording: Bool) {
         if !isRecording {
             cameraLink.stopRecording { (error) in
+                self.showToast(message: "Video recording error, try again later")
                 print("Video recording error on stop \(String(describing: error))")
             }
         } else {
@@ -175,6 +177,7 @@ extension CameraController: BottomBarDelegate {
                 guard let url = url else {
                     // Reset video recording buttons
                     self.bottomBar.resetVideoRecordingStatus()
+                    self.showToast(message: "Video session starting error, try again later")
                     print("Video recording error on start \(String(describing: error))")
                     return
                 }
