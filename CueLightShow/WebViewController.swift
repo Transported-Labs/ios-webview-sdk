@@ -322,7 +322,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
     }
     
     fileprivate func saveDataToCache(url: URL, data: Data?) {
-        let resultMessage = IOUtils.saveDataToCache(url: url, data: data, isOverwrite: true)
+        let resultMessage = IOUtils.saveDataToCache(url: url, data: data, isOverwrite: false)
         addToLog(resultMessage)
     }
     

@@ -38,6 +38,33 @@ public class IOUtils {
         }.resume()
     }
 
+    fileprivate static func hasNewLink(path: String, from links: [String]) -> Bool {
+        let fileManager = FileManager.default
+        // Get the Document Directory URL
+        if let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
+            // Get the Cache Directory URL
+            let cacheDirectory = documentsDirectory.appendingPathComponent(AppConstant.cacheDirectoryName, isDirectory: true)
+            if !fileManager.fileExists(atPath: cacheDirectory.path){
+                // No Cache Directory, all data are new
+                addToLog("No Cache Directory is found, need to create cache")
+                return true
+            }
+            for link in links {
+                if let url = URL(string: "\(path)/\(link)") {
+                    let fileName = makeFileNameFromUrl(url: url)
+                    let fileURL = cacheDirectory.appendingPathComponent(fileName)
+                    // Found non-existing in cache file
+                    if !fileManager.fileExists(atPath: fileURL.path){
+                        addToLog("File is not found in cache, need to update cache. File: \(shorten(fileName))")
+                        return true
+                    }
+                }
+            }
+        }
+        addToLog("All files listed in JSON for url: \(path) are already in cache.")
+        return false
+    }
+    
     fileprivate static func downloadFiles(path: String, from links: [String]) {
         for link in links {
             if let url = URL(string: "\(path)/\(link)") {
@@ -74,7 +101,9 @@ public class IOUtils {
                     masterGroup.enter()
                     let indexUrl = "\(jsonUrl)/\(AppConstant.indexFileName)"
                     fetchLinks(from: indexUrl) { links in
-                        downloadFiles(path: jsonUrl, from: links)
+                        if hasNewLink(path: jsonUrl, from: links) {
+                            downloadFiles(path: jsonUrl, from: links)
+                        }
                         masterGroup.leave()
                     }
                 }
