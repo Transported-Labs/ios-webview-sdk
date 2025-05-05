@@ -198,6 +198,8 @@ public class CueSDK: NSObject, WKUIDelegate {
         if let device = torchDevice {
             let isOn = (device.torchMode == .on)
             sendToJavaScript(result: isOn)
+        } else {
+            sendToJavaScript(result: false)
         }
     }
     
