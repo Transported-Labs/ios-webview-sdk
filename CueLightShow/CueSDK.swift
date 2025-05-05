@@ -25,6 +25,7 @@ public class CueSDK: NSObject, WKUIDelegate {
     let storageServiceName = "storage"
     let cameraServiceName = "camera"
     let networkServiceName = "network"
+    let timelineServiceName = "timeline"
     let onMethodName = "on"
     let offMethodName = "off"
     let checkIsOnMethodName = "isOn"
@@ -44,6 +45,8 @@ public class CueSDK: NSObject, WKUIDelegate {
     let openPhotoCameraMethodName = "openPhotoCamera"
     let openVideoCameraMethodName = "openVideoCamera"
     let getStateMethodName = "getState"
+    let startMethodName = "start"
+    let stopMethodName = "stop"
     
     let testErrorMethodName = "testError"
     
@@ -55,6 +58,8 @@ public class CueSDK: NSObject, WKUIDelegate {
     public var isTorchLocked: Bool = false
     private var networkStatus = ""
     
+    var onSwitchTimelineActive: ((Bool) -> Void)?
+
     lazy var cameraController: CameraController = {
         let camController = CameraController(cueSDK: self)
         camController.modalPresentationStyle = .overFullScreen
@@ -82,6 +87,10 @@ public class CueSDK: NSObject, WKUIDelegate {
         let contentController = self.webView.configuration.userContentController
         contentController.add(self, name: cueSDKName)
 //        initHapticEngine()
+    }
+    
+    public func setSwitchTimelineActive(_ newHandler: @escaping (Bool) -> Void) {
+        onSwitchTimelineActive = newHandler
     }
     
     // MARK: WebView methods
@@ -568,8 +577,16 @@ extension CueSDK: WKScriptMessageHandler{
                             checkNetworkState()
                     default: break
                     }
+                }  else if serviceName == timelineServiceName {
+                    switch methodName {
+                    case startMethodName:
+                        switchTimelineActive(newState: true)
+                    case stopMethodName:
+                        switchTimelineActive(newState: false)
+                    default: break
+                    }
                 }  else {
-                    errorToJavaScript("Only services '\(torchServiceName)', '\(vibrationServiceName)', '\(permissionsServiceName)', '\(storageServiceName)', '\(cameraServiceName)', '\(networkServiceName)' are supported")
+                    errorToJavaScript("Only services '\(torchServiceName)', '\(vibrationServiceName)', '\(permissionsServiceName)', '\(storageServiceName)', '\(cameraServiceName)', '\(networkServiceName)', '\(timelineServiceName)' are supported")
                 }
             }
         } else {
@@ -653,8 +670,19 @@ extension CueSDK: WKScriptMessageHandler{
         networkStatus = param
         notifyJavaScript(channel: "network-state", result: networkStatus)
     }
+    
+    public func notifyTimelineBreak() {
+        notifyJavaScript(channel: "timeline", result: "break")
+    }
 
-    private func  checkNetworkState() {
+    private func checkNetworkState() {
         sendToJavaScript(result: networkStatus)
+    }
+    
+    private func switchTimelineActive(newState: Bool) {
+        if let handler = onSwitchTimelineActive {
+            handler(newState)
+            sendToJavaScript(result: true)
+        }
     }
 }

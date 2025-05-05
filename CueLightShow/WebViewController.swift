@@ -81,10 +81,21 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         return CueSDK(viewController: controller, webView: self.webView)
     }()
 
+    public lazy var breakTimelineButton: UIButton = {
+        let button = UIButton()
+        button.setImage(UIImage(systemName: "xmark", withConfiguration: UIImage.SymbolConfiguration.init(pointSize: 30, weight: .bold)), for: .normal)
+        button.tintColor = UIColor.white
+        button.addShadow(radius: 3, opacity: 0.7)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.isHidden = true
+        button.addTarget(self, action: #selector(breakTimelineButtonPressed), for: .touchUpInside)
+        return button
+    }()
+    
     private lazy var exitButton: UIButton = {
         let button = UIButton()
         button.tintColor = .white
-        button.setImage(UIImage(systemName: "xmark", withConfiguration: UIImage.SymbolConfiguration.init(pointSize: 24, weight: .bold)), for: .normal)
+        button.setImage(UIImage(systemName: "arrow.left", withConfiguration: UIImage.SymbolConfiguration.init(pointSize: 30, weight: .bold)), for: .normal)
         button.imageView?.contentMode = .scaleAspectFill
         button.translatesAutoresizingMaskIntoConstraints = false
         return button
@@ -130,6 +141,21 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
             exitButton.topAnchor.constraint(equalTo: view.topAnchor, constant: 20),
             exitButton.leftAnchor.constraint(equalTo: view.leftAnchor, constant: 16)])
         exitButton.addTarget(self, action: #selector(exitButtonPressed(_:)), for: .touchUpInside)
+        
+        view.addSubview(breakTimelineButton)
+        // Constraints for breakTimelineButton at top right corner
+        NSLayoutConstraint.activate([
+            breakTimelineButton.widthAnchor.constraint(equalToConstant: 30),
+            breakTimelineButton.heightAnchor.constraint(equalToConstant: 30),
+            breakTimelineButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
+            breakTimelineButton.topAnchor.constraint(equalTo: view.topAnchor, constant: 45)
+        ])
+        cueSDK.setSwitchTimelineActive { isActive in
+            DispatchQueue.main.async {
+                self.breakTimelineButton.isHidden = !isActive
+                self.addToLog("Timeline switched to active: \(isActive)")
+            }
+        }
         // Adding control for reload web-page on pull down
         let refreshControl = UIRefreshControl()
         refreshControl.addTarget(self, action: #selector(reloadWebView(_:)), for: .valueChanged)
@@ -208,6 +234,10 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         webView.load(URLRequest(url: URL(string:"about:blank")!))
     }
     
+    @objc func breakTimelineButtonPressed() {
+        cueSDK.notifyTimelineBreak()
+    }
+    
     ///  Navigates to the local file url in embedded WKWebView-object
     public func navigateToFile(url: URL) {
         webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
@@ -253,6 +283,16 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
 
     public func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {
         print("Stopped loading \(urlSchemeTask.request.url?.absoluteString ?? "")\n")
+    }
+    
+    // Handle loading failures
+    public func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        print("didFailProvisionalNavigation - failed to load page: \(error.localizedDescription)")
+    }
+
+    // Handle completed navigation
+    public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        print("didFinish - page loaded successfully")
     }
     
 //    public func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
@@ -432,5 +472,14 @@ extension URL {
         } else {
             return hostName
         }
+    }
+}
+
+extension UIView {
+    func addShadow(radius: CGFloat = 5, opacity: Float = 0.5) {
+        layer.masksToBounds = false
+        layer.shadowOffset = CGSize(width: 0, height: 0)
+        layer.shadowRadius = radius
+        layer.shadowOpacity = opacity
     }
 }
