@@ -78,7 +78,14 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
 
     public lazy var cueSDK: CueSDK = {
         let controller: UIViewController = mainViewController ?? self
-        return CueSDK(viewController: controller, webView: self.webView)
+        let sdk = CueSDK(viewController: controller, webView: self.webView)
+        sdk.setSwitchTimelineActive { isActive in
+            DispatchQueue.main.async {
+                self.breakTimelineButton.isHidden = !isActive
+                self.addToLog("Timeline switched to active: \(isActive)")
+            }
+        }
+        return sdk
     }()
 
     public lazy var breakTimelineButton: UIButton = {
@@ -150,12 +157,6 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
             breakTimelineButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
             breakTimelineButton.topAnchor.constraint(equalTo: view.topAnchor, constant: 45)
         ])
-        cueSDK.setSwitchTimelineActive { isActive in
-            DispatchQueue.main.async {
-                self.breakTimelineButton.isHidden = !isActive
-                self.addToLog("Timeline switched to active: \(isActive)")
-            }
-        }
         // Adding control for reload web-page on pull down
         let refreshControl = UIRefreshControl()
         refreshControl.addTarget(self, action: #selector(reloadWebView(_:)), for: .valueChanged)
