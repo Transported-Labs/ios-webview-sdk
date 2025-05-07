@@ -50,7 +50,6 @@ public class CueSDK: NSObject, WKUIDelegate {
     
     let testErrorMethodName = "testError"
     
-    var curRequestId: Int? = nil
     var hapticEngine: CHHapticEngine?
     
     var viewController: UIViewController!
@@ -70,11 +69,7 @@ public class CueSDK: NSObject, WKUIDelegate {
         if let device = bestCamera(for: .back) {
             if device.hasTorch {
                 return device
-            } else {
-                errorToJavaScript("Torch is not available")
             }
-        }  else  {
-            errorToJavaScript("Device has no back camera")
         }
         return nil
     }()
@@ -121,11 +116,11 @@ public class CueSDK: NSObject, WKUIDelegate {
     
     // MARK: Camera/torch methods
 
-    private func openCamera(cameraLayout: CameraLayout) {
+    private func openCamera(_ requestId: Int, cameraLayout: CameraLayout) {
         initAudioSession()
         cameraController.initBottomBar(cameraLayout: cameraLayout)
         viewController.present(cameraController, animated:true, completion:nil)
-        sendToJavaScript(result: nil)
+        sendToJavaScript(requestId, result: nil)
     }
 
     private func bestCamera(for position: AVCaptureDevice.Position) -> AVCaptureDevice? {
@@ -156,9 +151,9 @@ public class CueSDK: NSObject, WKUIDelegate {
         return (level < minLevel) ? minLevel : ((level > maxLevel) ? maxLevel : level)
     }
     
-    private func turnTorchToLevel(level: Float) {
+    private func turnTorchToLevel(_ requestId: Int, level: Float) {
         guard !isTorchLocked else {
-            sendToJavaScript(result: nil)
+            errorToJavaScript(requestId, "Torch is locked by another subsystem")
             return
         }
         if let device = torchDevice {
@@ -167,16 +162,18 @@ public class CueSDK: NSObject, WKUIDelegate {
                 try device.lockForConfiguration()
                 try device.setTorchModeOn(level: intenseLevel)
                 device.unlockForConfiguration()
-                sendToJavaScript(result: nil)
+                sendToJavaScript(requestId, result: nil)
             } catch {
-                errorToJavaScript("Torch to level could not be used, error: \(error)")
+                errorToJavaScript(requestId, "Torch to level could not be used, error: \(error)")
             }
+        } else {
+            errorToJavaScript(requestId, "Torch is not available")
         }
     }
     
-    private func turnTorch(isOn: Bool) {
+    private func turnTorch(_ requestId: Int, isOn: Bool) {
         guard !isTorchLocked else {
-            sendToJavaScript(result: nil)
+            sendToJavaScript(requestId, result: nil)
             return
         }
         if let device = torchDevice {
@@ -187,26 +184,28 @@ public class CueSDK: NSObject, WKUIDelegate {
                     device.torchMode = mode
                 }
                 device.unlockForConfiguration()
-                sendToJavaScript(result: nil)
+                sendToJavaScript(requestId, result: nil)
             } catch {
-                errorToJavaScript("Torch could not be used, error: \(error)")
+                errorToJavaScript(requestId, "Torch could not be used, error: \(error)")
             }
+        } else {
+            errorToJavaScript(requestId, "Torch is not available")
         }
     }
     
-    private func checkIsTorchOn() {
+    private func checkIsTorchOn(_ requestId: Int) {
         if let device = torchDevice {
             let isOn = (device.torchMode == .on)
-            sendToJavaScript(result: isOn)
+            sendToJavaScript(requestId, result: isOn)
         } else {
-            sendToJavaScript(result: false)
+            errorToJavaScript(requestId, "Torch is not available")
         }
     }
     
-    fileprivate func debugMessageToJS(_ message: String) {
+    fileprivate func debugMessageToJS(_ requestId: Int, _ message: String) {
         // Is used for debug purposes
 //        DispatchQueue.main.async {
-//            self.sendToJavaScript(result: nil, errorMessage: message)
+//            self.sendToJavaScript(requestId, result: nil, errorMessage: message)
 //        }
     }
     
@@ -218,7 +217,7 @@ public class CueSDK: NSObject, WKUIDelegate {
         return Int(CACurrentMediaTime() * 1000.0)
     }
     
-    private func advancedSparkle(rampUpMs: Int, sustainMs: Int, rampDownMs: Int, intensity: Float) {
+    private func advancedSparkle(_ requestId: Int, rampUpMs: Int, sustainMs: Int, rampDownMs: Int, intensity: Float) {
         let blinkDelayMs: Int = 10
         let totalDuration = rampUpMs + sustainMs + rampDownMs
         if let device = torchDevice {
@@ -233,7 +232,7 @@ public class CueSDK: NSObject, WKUIDelegate {
                         var currentRampUpTime = 0
                         while ((currentRampUpTime < rampUpMs) && isSparkling) {
                             let upIntensity = Float(currentRampUpTime) / Float(rampUpMs) * intenseLevel
-                            debugMessageToJS("rampUp: \(upIntensity)")
+                            debugMessageToJS(requestId, "rampUp: \(upIntensity)")
                             if (upIntensity > 0.0) && !isTorchLocked {
                                 try device.setTorchModeOn(level: upIntensity)
                             }
@@ -241,7 +240,7 @@ public class CueSDK: NSObject, WKUIDelegate {
                             currentRampUpTime = nowMs() - rampUpStart
                         }
                         if isSparkling && !isTorchLocked {
-                            debugMessageToJS("sustain: \(intenseLevel)")
+                            debugMessageToJS(requestId, "sustain: \(intenseLevel)")
                             try device.setTorchModeOn(level: intenseLevel)
                         }
                         sleepMs(sustainMs)
@@ -249,7 +248,7 @@ public class CueSDK: NSObject, WKUIDelegate {
                         var currentRampDownTime = 0
                         while ((currentRampDownTime < rampDownMs) && isSparkling){
                             let downIntensity = (1.0 - Float(currentRampDownTime) / Float(rampDownMs)) * intenseLevel
-                            debugMessageToJS("rampDownn: \(downIntensity)")
+                            debugMessageToJS(requestId, "rampDownn: \(downIntensity)")
                             if (downIntensity > 0.0) && !isTorchLocked {
                                 try device.setTorchModeOn(level: downIntensity)
                             }
@@ -257,7 +256,7 @@ public class CueSDK: NSObject, WKUIDelegate {
                             currentRampDownTime = nowMs() - rampDownStart
                         }
                     } catch {
-                        errorToJavaScript("Torch could not be used inside advancedSparkle, error: \(error)")
+                        errorToJavaScript(requestId, "Torch could not be used inside advancedSparkle, error: \(error)")
                     }
                 }
                 let dispatchGroup = DispatchGroup()
@@ -271,16 +270,18 @@ public class CueSDK: NSObject, WKUIDelegate {
                         device.torchMode = .off
                     }
                     device.unlockForConfiguration()
-                    self.debugMessageToJS("stopped after:\(totalDuration) ms")
-                    self.sendToJavaScript(result: nil)
+                    self.debugMessageToJS(requestId, "stopped after:\(totalDuration) ms")
+                    self.sendToJavaScript(requestId, result: nil)
                 })
             } catch {
-                errorToJavaScript("Torch could not be used for advancedSparkle, error: \(error)")
+                errorToJavaScript(requestId, "Torch could not be used for advancedSparkle, error: \(error)")
             }
+        } else {
+            errorToJavaScript(requestId, "Torch is not available")
         }
     }
     
-    private func sparkle(duration: Int) {
+    private func sparkle(_ requestId: Int, duration: Int) {
         // Delay in microseconds for usleep function
         let blinkDelay: UInt32 = 50000
         if (duration > 0) {
@@ -312,18 +313,20 @@ public class CueSDK: NSObject, WKUIDelegate {
                             device.torchMode = .off
                         }
                         device.unlockForConfiguration()
-                        self.sendToJavaScript(result: nil)
+                        self.sendToJavaScript(requestId, result: nil)
                     })
                 } catch {
-                    errorToJavaScript("Torch could not be used for sparkle, error: \(error)")
+                    errorToJavaScript(requestId, "Torch could not be used for sparkle, error: \(error)")
                 }
+            } else {
+                errorToJavaScript(requestId, "Torch is not available")
             }
         } else {
-            errorToJavaScript("Duration: \(duration) is not valid value")
+            errorToJavaScript(requestId, "Duration: \(duration) is not valid value")
         }
     }
     
-    private func saveMedia(data: String, filename: String) {
+    private func saveMedia(_ requestId: Int, data: String, filename: String) {
         if ((data != "") && (filename != "")) {
             let dataDecoded = Data(base64Encoded: data)
             PHPhotoLibrary.shared().performChanges({
@@ -334,40 +337,40 @@ public class CueSDK: NSObject, WKUIDelegate {
             }, completionHandler: { success, error in
                 if success {
                     DispatchQueue.main.async {
-                        self.sendToJavaScript(result: nil)
+                        self.sendToJavaScript(requestId, result: nil)
                     }
                 }
                 else if let error = error {
-                    self.errorToJavaScript(error.localizedDescription)
+                    self.errorToJavaScript(requestId, error.localizedDescription)
                 }
                 else {
-                    self.errorToJavaScript("Media was not saved correctly")
+                    self.errorToJavaScript(requestId, "Media was not saved correctly")
                 }
             })
         } else {
-            errorToJavaScript("Data and filename can not be empty")
+            errorToJavaScript(requestId, "Data and filename can not be empty")
         }
     }
     
-    private func saveCacheFile(fileName: String, dataStr: String) {
+    private func saveCacheFile(_ requestId: Int, fileName: String, dataStr: String) {
         let data = Data(dataStr.utf8)
         let logMessage = IOUtils.saveMediaToFile(fileName: fileName, data: data, isOverwrite: true)
         print("CueSDK saveCacheFile: \(fileName), \(logMessage)")
         if (logMessage.contains("Error")) {
-            errorToJavaScript("\(logMessage), file: \(fileName)")
+            errorToJavaScript(requestId, "\(logMessage), file: \(fileName)")
         } else {
-            sendToJavaScript(result: nil)
+            sendToJavaScript(requestId, result: nil)
         }
     }
     
-    private func sendCacheFileToJavascript(fileName: String) {
+    private func sendCacheFileToJavascript(_ requestId: Int, fileName: String) {
         let mediaFromCache = IOUtils.loadMediaFromCacheFile(fileName: fileName)
         print(mediaFromCache.logMessage)
         if let data = mediaFromCache.data {
             let inputAsString = String(decoding: data, as: UTF8.self)
-            sendToJavaScript(result: inputAsString)
+            sendToJavaScript(requestId, result: inputAsString)
         } else {
-            errorToJavaScript("Error with file \(fileName): \(mediaFromCache.logMessage)")
+            errorToJavaScript(requestId, "Error with file \(fileName): \(mediaFromCache.logMessage)")
         }
     }
     
@@ -384,7 +387,7 @@ public class CueSDK: NSObject, WKUIDelegate {
             try audioSession.setAllowHapticsAndSystemSoundsDuringRecording(true)
             try audioSession.setActive(true)
         } catch {
-            errorToJavaScript("initAudioSession failed: \(error.localizedDescription)")
+            print("initAudioSession failed: \(error.localizedDescription)")
         }
     }
     
@@ -401,22 +404,23 @@ public class CueSDK: NSObject, WKUIDelegate {
                     print("stoppedHandler: Try restarting the hapticEngine.")
                     try self.hapticEngine?.start()
                 } catch {
-                    self.errorToJavaScript("Failed to restart the hapticEngine: \(error.localizedDescription)")
+                    print("Failed to restart the hapticEngine: \(error.localizedDescription)")
                 }
             }
             try hapticEngine?.start()
         } catch {
-            errorToJavaScript("There was an error creating the hapticEngine: \(error.localizedDescription)")
+            print("There was an error creating the hapticEngine: \(error.localizedDescription)")
         }
     }
     
-    private func makeVibration(duration: Int) {
+    private func makeVibration(_ requestId: Int, duration: Int) {
         initAudioSession()
         AudioServicesPlayAlertSound(kSystemSoundID_Vibrate)
 //        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+        sendToJavaScript(requestId, result: nil)
     }
     
-    private func makeVibration2(duration: Int) {
+    private func makeVibration2(_ requestId: Int, duration: Int) {
         initAudioSession()
         if let engine = hapticEngine {
             let intensity = CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0)
@@ -430,37 +434,39 @@ public class CueSDK: NSObject, WKUIDelegate {
                 let pattern = try CHHapticPattern(events: events, parameters: [])
                 let player = try engine.makePlayer(with: pattern)
                 try player.start(atTime: 0)
-                sendToJavaScript(result: nil)
+                sendToJavaScript(requestId, result: nil)
             } catch {
-                errorToJavaScript("Haptic Error: \(error.localizedDescription).")
+                errorToJavaScript(requestId, "Haptic Error: \(error.localizedDescription).")
             }
+        } else {
+            errorToJavaScript(requestId, "Haptic Engine is not initialized")
         }
     }
     
     // MARK: Permissions methods
     
-    private func checkHasPermission(type: AVMediaType) {
+    private func checkHasPermission(_ requestId: Int, type: AVMediaType) {
         let result = (AVCaptureDevice.authorizationStatus(for: type) ==  .authorized)
-        self.sendToJavaScript(result: result)
+        self.sendToJavaScript(requestId, result: result)
     }
     
-    private func askForPermission(type: AVMediaType) {
+    private func askForPermission(_ requestId: Int, type: AVMediaType) {
         AVCaptureDevice.requestAccess(for: type) { allowed in
             DispatchQueue.main.async {
-                self.sendToJavaScript(result: allowed)
+                self.sendToJavaScript(requestId, result: allowed)
             }
         }
     }
     
-    private func checkHasSavePhotoPermission() {
+    private func checkHasSavePhotoPermission(_ requestId: Int) {
         let result = (PHPhotoLibrary.authorizationStatus() == .authorized)
-        self.sendToJavaScript(result: result)
+        self.sendToJavaScript(requestId, result: result)
     }
     
-    private func askForSavePhotoPermission() {
+    private func askForSavePhotoPermission(_ requestId: Int) {
         PHPhotoLibrary.requestAuthorization { status in
             DispatchQueue.main.async {
-                self.sendToJavaScript(result: (status == .authorized))
+                self.sendToJavaScript(requestId, result: (status == .authorized))
             }
         }
     }
@@ -471,131 +477,159 @@ public class CueSDK: NSObject, WKUIDelegate {
 extension CueSDK: WKScriptMessageHandler{
     
     fileprivate func processParams(_ params: ParamsArray) {
-        if let requestId = params[0] as? Int {
-            curRequestId = requestId
-            if let serviceName = params[1] as? String, let methodName = params[2] as? String {
-                if serviceName == torchServiceName {
-                    switch methodName {
-                    case onMethodName:
-                        if params.count > 3 {
-                            // Float should be processed as Double to avoid error
-                            if let level = params[3] as? Double {
-                                turnTorchToLevel(level: Float(level))
-                            } else {
-                                let level = params[3]
-                                errorToJavaScript("Level is not valid float value: \(level ?? "")")
-                            }
-                        } else {
-                            turnTorch(isOn: true)
-                        }
-                    case offMethodName:
-                        turnTorch(isOn: false)
-                    case checkIsOnMethodName:
-                        checkIsTorchOn()
-                    case sparkleMethodName:
-                        if let duration = params[3] as? Int {
-                            sparkle(duration: duration)
-                        } else {
-                            errorToJavaScript("Duration: null is not valid value")
-                        }
-                    case advancedSparkleMethodName:
-                        if params.count > 6 {
-                            if let rampUpMs = params[3] as? Int {
-                                if let sustainMs = params[4] as? Int {
-                                    if let rampDownMs = params[5] as? Int {
-                                        if let intensity = params[6] as? Double {
-                                            advancedSparkle(rampUpMs: rampUpMs, sustainMs: sustainMs, rampDownMs: rampDownMs, intensity: Float(intensity))
-                                        }}}}
-                        } else {
-                            errorToJavaScript("Needed more params for advancedSparkle: rampUpMs: Int, sustainMs: Int, rampDownMs: Int, intensity: Float")
-                        }
-                    case testErrorMethodName:
-                        errorToJavaScript("This is the test error message")
-                    default: break
-                    }
-                } else if serviceName == vibrationServiceName {
-                    switch methodName {
-                    case vibrateMethodName:
-                        if let duration = params[3] as? Int {
-                            makeVibration(duration: duration)
-                        } else {
-                            errorToJavaScript("Duration: null is not valid value")
-                        }
-                    default: break
-                    }
-                } else if serviceName == storageServiceName {
-                    switch methodName {
-                    case saveMediaMethodName:
-                        if let data = params[3] as? String,
-                            let filename = params[4] as? String  {
-                            saveMedia(data: data, filename: filename)
-                        } else {
-                            errorToJavaScript("Params data and filename must be not null")
-                        }
-                    case saveCacheFileName: 
-                        if let fileName = params[3] as? String,
-                            let data = params[4] as? String {
-                            saveCacheFile(fileName: fileName, dataStr: data)
-                        } else {
-                            errorToJavaScript("Params fileName and data must be not null")
-                        }
-                    case getCacheFileName:
-                        if let fileName = params[3] as? String {
-                            sendCacheFileToJavascript(fileName: fileName)
-                        } else {
-                            errorToJavaScript("Param fileName must be not null")
-                        }
-                    default: break
-                    }
-                } else if serviceName == permissionsServiceName {
-                    switch methodName {
-                    case askMicMethodName:
-                        askForPermission(type: AVMediaType.audio)
-                    case askCamMethodName:
-                        askForPermission(type: AVMediaType.video)
-                    case askSavePhotoMethodName:
-                        askForSavePhotoPermission()
-                    case hasMicMethodName:
-                        checkHasPermission(type: AVMediaType.audio)
-                    case hasCamMethodName:
-                        checkHasPermission(type: AVMediaType.video)
-                    case hasSavePhotoMethodName:
-                        checkHasSavePhotoPermission()
-                    default: break
-                    }
-                } else if serviceName == cameraServiceName {
-                    switch methodName {
-                    case openCameraMethodName:
-                        openCamera(cameraLayout: CameraLayout.both)
-                    case openPhotoCameraMethodName:
-                        openCamera(cameraLayout: CameraLayout.photoOnly)
-                    case openVideoCameraMethodName:
-                        openCamera(cameraLayout: CameraLayout.videoOnly)
-                    default: break
-                    }
-                } else if serviceName == networkServiceName {
-                    switch methodName {
-                    case getStateMethodName:
-                            checkNetworkState()
-                    default: break
-                    }
-                }  else if serviceName == timelineServiceName {
-                    switch methodName {
-                    case startMethodName:
-                        switchTimelineActive(newState: true)
-                    case stopMethodName:
-                        switchTimelineActive(newState: false)
-                    default: break
-                    }
-                }  else {
-                    errorToJavaScript("Only services '\(torchServiceName)', '\(vibrationServiceName)', '\(permissionsServiceName)', '\(storageServiceName)', '\(cameraServiceName)', '\(networkServiceName)', '\(timelineServiceName)' are supported")
+        if let requestId = params[safe: 0] as? Int {
+            if let serviceName = params[safe: 1] as? String, let methodName = params[safe: 2] as? String {
+                switch serviceName {
+                case torchServiceName:
+                    handleTorchService(requestId, methodName, params)
+                case vibrationServiceName:
+                    handleVibrationService(requestId, methodName, params)
+                case storageServiceName:
+                    handleStorageService(requestId, methodName, params)
+                case permissionsServiceName:
+                    handlePermissionsService(requestId, methodName)
+                case cameraServiceName:
+                    handleCameraService(requestId, methodName)
+                case networkServiceName:
+                    handleNetworkService(requestId, methodName)
+                case timelineServiceName:
+                    handleTimelineService(requestId, methodName)
+                default:
+                    errorToJavaScript(requestId, "Unsupported service: \(serviceName)")
                 }
+            } else {
+                errorToJavaScript(requestId, "No correct serviceName or/and methodName were passed")
             }
         } else {
-            errorToJavaScript("No correct serviceName or/and methodName were passsed")
+            print("No correct requestId was passed: \(String(describing: params[safe: 0]))")
         }
     }
     
+    fileprivate func handleTimelineService(_ requestId: Int, _ methodName: String) {
+        switch methodName {
+        case startMethodName:
+            switchTimelineActive(requestId, newState: true)
+        case stopMethodName:
+            switchTimelineActive(requestId, newState: false)
+        default: break
+        }
+    }
+    
+    fileprivate func handleNetworkService(_ requestId: Int, _ methodName: String) {
+        switch methodName {
+        case getStateMethodName:
+            checkNetworkState(requestId)
+        default: break
+        }
+    }
+    
+    fileprivate func handleCameraService(_ requestId: Int, _ methodName: String) {
+        switch methodName {
+        case openCameraMethodName:
+            openCamera(requestId, cameraLayout: CameraLayout.both)
+        case openPhotoCameraMethodName:
+            openCamera(requestId, cameraLayout: CameraLayout.photoOnly)
+        case openVideoCameraMethodName:
+            openCamera(requestId, cameraLayout: CameraLayout.videoOnly)
+        default: break
+        }
+    }
+    
+    fileprivate func handlePermissionsService(_ requestId: Int, _ methodName: String) {
+        switch methodName {
+        case askMicMethodName:
+            askForPermission(requestId, type: AVMediaType.audio)
+        case askCamMethodName:
+            askForPermission(requestId, type: AVMediaType.video)
+        case askSavePhotoMethodName:
+            askForSavePhotoPermission(requestId)
+        case hasMicMethodName:
+            checkHasPermission(requestId, type: AVMediaType.audio)
+        case hasCamMethodName:
+            checkHasPermission(requestId, type: AVMediaType.video)
+        case hasSavePhotoMethodName:
+            checkHasSavePhotoPermission(requestId)
+        default: break
+        }
+    }
+    
+    fileprivate func handleStorageService(_ requestId: Int, _ methodName: String, _ params: ParamsArray) {
+        switch methodName {
+        case saveMediaMethodName:
+            if let data = params[safe: 3] as? String,
+               let filename = params[safe: 4] as? String  {
+                saveMedia(requestId, data: data, filename: filename)
+            } else {
+                errorToJavaScript(requestId, "Params data and filename must be not null")
+            }
+        case saveCacheFileName:
+            if let fileName = params[safe: 3] as? String,
+               let data = params[safe: 4] as? String {
+                saveCacheFile(requestId, fileName: fileName, dataStr: data)
+            } else {
+                errorToJavaScript(requestId, "Params fileName and data must be not null")
+            }
+        case getCacheFileName:
+            if let fileName = params[safe: 3] as? String {
+                sendCacheFileToJavascript(requestId, fileName: fileName)
+            } else {
+                errorToJavaScript(requestId, "Param fileName must be not null")
+            }
+        default: break
+        }
+    }
+    
+    fileprivate func handleVibrationService(_ requestId: Int, _ methodName: String, _ params: ParamsArray) {
+        switch methodName {
+        case vibrateMethodName:
+            if let duration = params[safe: 3] as? Int {
+                makeVibration(requestId, duration: duration)
+            } else {
+                errorToJavaScript(requestId, "Duration: null is not valid value")
+            }
+        default: break
+        }
+    }
+    
+    fileprivate func handleTorchService(_ requestId: Int, _ methodName: String, _ params: ParamsArray) {
+        switch methodName {
+        case onMethodName:
+            if params.count > 3 {
+                // Float should be processed as Double to avoid error
+                if let level = params[safe: 3] as? Double {
+                    turnTorchToLevel(requestId, level: Float(level))
+                } else {
+                    let level = params[safe: 3]
+                    errorToJavaScript(requestId, "Level is not valid float value: \(String(describing: level))")
+                }
+            } else {
+                turnTorch(requestId, isOn: true)
+            }
+        case offMethodName:
+            turnTorch(requestId, isOn: false)
+        case checkIsOnMethodName:
+            checkIsTorchOn(requestId)
+        case sparkleMethodName:
+            if let duration = params[safe: 3] as? Int {
+                sparkle(requestId, duration: duration)
+            } else {
+                errorToJavaScript(requestId, "Duration: null is not valid value")
+            }
+        case advancedSparkleMethodName:
+            if let rampUpMs = params[safe: 3] as? Int,
+               let sustainMs = params[safe: 4] as? Int,
+               let rampDownMs = params[safe: 5] as? Int,
+               let intensity = params[safe: 6] as? Double {
+                advancedSparkle(requestId, rampUpMs: rampUpMs, sustainMs: sustainMs, rampDownMs: rampDownMs, intensity: Float(intensity))
+            } else {
+                errorToJavaScript(requestId, "Needed more params for advancedSparkle: rampUpMs: Int, sustainMs: Int, rampDownMs: Int, intensity: Float")
+            }
+        case testErrorMethodName:
+            errorToJavaScript(requestId, "This is the test error message")
+        default: break
+        }
+    }
+
     public func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         print("Received message from JS: \(message.body)")
         guard message.name == cueSDKName else { return }
@@ -611,60 +645,52 @@ extension CueSDK: WKScriptMessageHandler{
             do {
                 return try JSONSerialization.jsonObject(with: data, options: []) as? ParamsArray
             } catch {
-                errorToJavaScript(error.localizedDescription)
+                print(error.localizedDescription)
             }
         }
         return nil
     }
 
-    private func errorToJavaScript(_ errorMessage: String) {
+    private func errorToJavaScript(_ requestId: Int, _ errorMessage: String) {
         print(errorMessage)
         DispatchQueue.main.async {
-            self.sendToJavaScript(result: nil, errorMessage: errorMessage)
+            self.sendToJavaScript(requestId, result: nil, errorMessage: errorMessage)
         }
     }
     
-    private func sendToJavaScript(result: Any?, errorMessage: String = "") {
-        if curRequestId != nil {
-            var params: ParamsArray = [curRequestId]
-            if result != nil {
-                params.append(result)
-            } else if errorMessage != "" {
-                params.append(nil)
-                params.append(errorMessage)
-            }
-            if let data = try? JSONSerialization.data(withJSONObject: params, options: [.prettyPrinted]),
-                let paramData = String(data: data, encoding: .utf8) {
-                let js2:String = "cueSDKCallback(JSON.stringify(\(paramData)))"
-                print("Sent to Javascript: \(js2)")
-                self.webView.evaluateJavaScript(js2, completionHandler: { (result, error) -> Void in
-                    print(error?.localizedDescription ?? "Sent successfully, no errors")
-                })
-            }
-        } else {
-            print("curRequestId is nil")
+    private func sendToJavaScript(_ requestId: Int, result: Any?, errorMessage: String = "") {
+        var params: ParamsArray = [requestId]
+        if result != nil {
+            params.append(result)
+        } else if errorMessage != "" {
+            params.append(nil)
+            params.append(errorMessage)
+        }
+        if let data = try? JSONSerialization.data(withJSONObject: params, options: [.prettyPrinted]),
+            let paramData = String(data: data, encoding: .utf8) {
+            let js2:String = "cueSDKCallback(JSON.stringify(\(paramData)))"
+            print("Sent to Javascript: \(js2)")
+            self.webView.evaluateJavaScript(js2, completionHandler: { (result, error) -> Void in
+                print(error?.localizedDescription ?? "Sent successfully, no errors")
+            })
         }
     }
     
-    private func notifyJavaScript(channel:String?, result: Any?, errorMessage: String = "") {
-        if channel != nil {
-            var params: ParamsArray = [channel]
-            if result != nil {
-                params.append(result)
-            } else if errorMessage != "" {
-                params.append(nil)
-                params.append(errorMessage)
-            }
-            if let data = try? JSONSerialization.data(withJSONObject: params, options: [.prettyPrinted]),
-                let paramData = String(data: data, encoding: .utf8) {
-                let js2:String = "cueSDKNotification(JSON.stringify(\(paramData)))"
-                print("Sent Notification to Javascript: \(js2)")
-                self.webView.evaluateJavaScript(js2, completionHandler: { (result, error) -> Void in
-                    print(error?.localizedDescription ?? "Sent successfully, no errors")
-                })
-            }
-        } else {
-            print("channel is nil")
+    private func notifyJavaScript(channel:String, result: Any?, errorMessage: String = "") {
+        var params: ParamsArray = [channel]
+        if result != nil {
+            params.append(result)
+        } else if errorMessage != "" {
+            params.append(nil)
+            params.append(errorMessage)
+        }
+        if let data = try? JSONSerialization.data(withJSONObject: params, options: [.prettyPrinted]),
+            let paramData = String(data: data, encoding: .utf8) {
+            let js2:String = "cueSDKNotification(JSON.stringify(\(paramData)))"
+            print("Sent Notification to Javascript: \(js2)")
+            self.webView.evaluateJavaScript(js2, completionHandler: { (result, error) -> Void in
+                print(error?.localizedDescription ?? "Sent successfully, no errors")
+            })
         }
     }
     
@@ -677,14 +703,20 @@ extension CueSDK: WKScriptMessageHandler{
         notifyJavaScript(channel: "timeline", result: "break")
     }
 
-    private func checkNetworkState() {
-        sendToJavaScript(result: networkStatus)
+    private func checkNetworkState(_ requestId: Int) {
+        sendToJavaScript(requestId, result: networkStatus)
     }
     
-    private func switchTimelineActive(newState: Bool) {
+    private func switchTimelineActive(_ requestId: Int, newState: Bool) {
         if let handler = onSwitchTimelineActive {
             handler(newState)
-            sendToJavaScript(result: true)
+            sendToJavaScript(requestId, result: true)
         }
+    }
+}
+
+extension Array {
+    subscript(safe index: Int) -> Element? {
+        return indices.contains(index) ? self[index] : nil
     }
 }
