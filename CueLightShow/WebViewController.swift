@@ -82,6 +82,10 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         sdk.setSwitchTimelineActive { isActive in
             DispatchQueue.main.async {
                 self.breakTimelineButton.isHidden = !isActive
+                if isActive {
+                    // Hide refreshButton on start of show, don't make it visible again
+                    self.refreshButton.isHidden = true
+                }
                 self.addToLog("Timeline switched to active: \(isActive)")
             }
         }
@@ -96,6 +100,16 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
         button.translatesAutoresizingMaskIntoConstraints = false
         button.isHidden = true
         button.addTarget(self, action: #selector(breakTimelineButtonPressed), for: .touchUpInside)
+        return button
+    }()
+    
+    public lazy var refreshButton: UIButton = {
+        let button = UIButton()
+        button.setImage(UIImage(systemName: "arrow.clockwise", withConfiguration: UIImage.SymbolConfiguration.init(pointSize: 30, weight: .bold)), for: .normal)
+        button.tintColor = UIColor.white
+        button.addShadow(radius: 3, opacity: 0.7)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.addTarget(self, action: #selector(refreshButtonPressed), for: .touchUpInside)
         return button
     }()
     
@@ -156,6 +170,13 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
             breakTimelineButton.heightAnchor.constraint(equalToConstant: 30),
             breakTimelineButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
             breakTimelineButton.topAnchor.constraint(equalTo: view.topAnchor, constant: 45)
+        ])
+        // Constraints for refreshButton at top right corner
+        NSLayoutConstraint.activate([
+            refreshButton.widthAnchor.constraint(equalToConstant: 45),
+            refreshButton.heightAnchor.constraint(equalToConstant: 45),
+            refreshButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
+            refreshButton.topAnchor.constraint(equalTo: view.topAnchor, constant: 45)
         ])
         // Adding control for reload web-page on pull down
         let refreshControl = UIRefreshControl()
@@ -237,6 +258,10 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
     
     @objc func breakTimelineButtonPressed() {
         cueSDK.notifyTimelineBreak()
+    }
+    
+    @objc func refreshButtonPressed() {
+        webView.reload()
     }
     
     ///  Navigates to the local file url in embedded WKWebView-object

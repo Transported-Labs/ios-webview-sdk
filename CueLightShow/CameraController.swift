@@ -96,15 +96,7 @@ class CameraController: UIViewController {
     }
     
     func checkSessionIsStarted() {
-        var needRestartSession = false
-        if let captureSession = cameraLink.captureSession {
-            needRestartSession = !captureSession.isRunning
-        } else {
-            needRestartSession = true
-        }
-        if needRestartSession {
-            prepareCameraLink()
-        }
+        prepareCameraLink()
     }
     
     override func viewDidLoad() {
@@ -187,7 +179,8 @@ extension CameraController: BottomBarDelegate {
     }
     
     func exitButtonPressed() {
-        // Don't stop capture session here
+        // Stop capture session here
+        cameraLink.stopSession()
         dismiss(animated: true, completion: nil)
     }
 }
