@@ -171,6 +171,7 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
             breakTimelineButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
             breakTimelineButton.topAnchor.constraint(equalTo: view.topAnchor, constant: 45)
         ])
+        view.addSubview(refreshButton)
         // Constraints for refreshButton at top right corner
         NSLayoutConstraint.activate([
             refreshButton.widthAnchor.constraint(equalToConstant: 45),
