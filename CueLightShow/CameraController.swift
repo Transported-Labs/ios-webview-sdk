@@ -53,6 +53,7 @@ class CameraController: UIViewController {
     
     deinit {
         cameraLink.stopSession()
+        cueSDK.stopAudioSession()
     }
 
     private func prepareCameraLink() {
@@ -181,6 +182,7 @@ extension CameraController: BottomBarDelegate {
     func exitButtonPressed() {
         // Stop capture session here
         cameraLink.stopSession()
+        cueSDK.stopAudioSession()
         dismiss(animated: true, completion: nil)
     }
 }

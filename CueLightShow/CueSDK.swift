@@ -391,6 +391,15 @@ public class CueSDK: NSObject, WKUIDelegate {
         }
     }
     
+    func stopAudioSession() {
+        let audioSession = AVAudioSession.sharedInstance()
+        do {
+            try audioSession.setActive(false)
+        } catch {
+            print("stopAudioSession failed: \(error.localizedDescription)")
+        }
+    }
+    
     private func initHapticEngine() {
         guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
 
