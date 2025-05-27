@@ -377,14 +377,19 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
     fileprivate func loadFromCache(cueUrl: URL, url: URL, task: WKURLSchemeTask) -> Bool {
         guard let fileUrl = fileUrlFromUrl(url: url),
               let data = try? Data(contentsOf: fileUrl) else { return false }
-        
-//        if !processAsPatchedTextResource(url: url, task: task, data: data) {
             let mimeType = IOUtils.prepareUrlString(urlString: url.absoluteString).mimeType()
-            let response = HTTPURLResponse(url: cueUrl,
-                                           mimeType: mimeType,
-                                           expectedContentLength: data.count, textEncodingName: nil)
+            let headers = [
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                "Content-Type": mimeType
+            ]
+            let response = HTTPURLResponse(
+                url: cueUrl,
+                statusCode: 200,
+                httpVersion: "HTTP/1.1",
+                headerFields: headers
+            )!
             processTaskFinish(task, response, data)
-//        }
         return true
     }
     
@@ -394,21 +399,26 @@ public class WebViewController: UIViewController, WKNavigationDelegate, WKURLSch
     }
     
     fileprivate func downloadFromWebSaveToCache(cueUrl: URL, url: URL, task: WKURLSchemeTask) {
-        URLSession.shared.dataTask(with: url) { [self] (cueData, _, cueError) in
+        URLSession.shared.dataTask(with: url) { [self] (cueData, cueResponse, cueError) in
             if let error = cueError {
                 self.addToLog("ERROR downloading by WebView: \(error.localizedDescription), url:\(url)")
             } else {
                 if (url.absoluteString.contains(cachePattern)) && !(url.absoluteString.contains(ignorePattern)) {
                     saveDataToCache(url: url, data: cueData)
                 }
-                if let data = cueData {
-//                    if !processAsPatchedTextResource(url: url, task: task, data: data) {
-                        let mimeType = IOUtils.prepareUrlString(urlString: url.absoluteString).mimeType()
-                        let response = HTTPURLResponse(url: cueUrl,
-                                                       mimeType: mimeType,
-                                                       expectedContentLength: data.count, textEncodingName: nil)
-                        processTaskFinish(task, response, data)
-//                    }
+                if let data = cueData, let originalResponse = cueResponse as? HTTPURLResponse  {
+                    let headers = [
+                        "Access-Control-Allow-Origin": "*",
+                        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                        "Content-Type": originalResponse.allHeaderFields["Content-Type"] as? String ?? "application/octet-stream"
+                    ]
+                    let response = HTTPURLResponse(
+                        url: originalResponse.url!,
+                        statusCode: originalResponse.statusCode,
+                        httpVersion: "HTTP/1.1",
+                        headerFields: headers
+                    )!
+                    processTaskFinish(task, response, data)
                 }
             }
         }.resume()
