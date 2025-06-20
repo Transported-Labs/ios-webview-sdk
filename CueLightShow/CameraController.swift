@@ -154,7 +154,6 @@ extension CameraController: BottomBarDelegate {
                 print("Photo capture error \(String(describing: error))")
                 return
             }
-            self.previewArea.image = image
             UIImageWriteToSavedPhotosAlbum(image, self, #selector(self.image(_:didFinishSavingWithError:contextInfo:)), nil)
         }
     }
